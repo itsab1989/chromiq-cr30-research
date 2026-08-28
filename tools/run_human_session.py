@@ -8,21 +8,27 @@ instrument and press Enter; every judgement, decode and comparison is done here
 
 WHAT ONE RUN ANSWERS
   identity + fingerprint stability across the whole session
-  what a measurement returns with NO calibration          (phase 1)
-  black calibration: command, reply, status, timing        (phase 2)
-  white calibration: command, reply, status, timing        (phase 3)
-  a measurement on the white tile -- the positive control  (phase 4)
-  a measurement on the black cap  -- the other end         (phase 5)
-  a measurement on a colour patch                          (phase 6)
-  repeatability: 3 reads without lifting                   (phase 6)
+  a measurement using the device's existing calibration    (stage A 1)
+  AIR    as the LOW-signal control                         (stage A 2)
+  PAPER  as the HIGH-signal control                        (stage A 3)
+  repeatability: 3 reads without lifting                   (stage A 4)
   is a measurement cached? re-fetch chunks, no re-trigger  (phase 7)
   what happens if chunks are fetched with no measurement   (phase 8)
-  button-triggered reading + unsolicited traffic           (phase 9)
-  4 more patches, for the spectral-rank question           (phase 10)
+  button-triggered reading + unsolicited traffic           (stage A 6)
+  the operator-reported MAGNET behaviour, passively        (stage A 7)
+  4 more patches, for the spectral-rank question           (stage A 8)
+
+THIS UNIT HAS NO BLACK TILE. The magnetic cap holds the WHITE tile, and the
+operator reports that attaching it -- or any magnet -- can make the device treat
+a reading as a calibration, which is consistent with a hall sensor. So stage A
+uses OPEN AIR as the low-signal control and PLAIN PAPER as the high-signal
+control: neither involves a magnet, so neither control can be corrupted by that
+behaviour, and stage A never sends BB 10 or BB 11 at all.
 
 SAFETY (SAFETY_ENVELOPE.md). Only the sixteen vendor-observed triples are sent.
-BB 10 / BB 11 write calibration and are green ONLY here, with tiles present and
-a human watching. Between every phase the four identity sub-commands are re-read
+BB 10 / BB 11 write calibration and are sent ONLY in stage B, which is opt-in
+(--stage-b-calibration) and must not be run until the device's real calibration
+procedure is established -- see CALIBRATION.md. Between every phase the four identity sub-commands are re-read
 as a 240-byte fingerprint; ANY change aborts the run.
 """
 import sys, time, json, pathlib, datetime, struct, statistics
@@ -32,7 +38,12 @@ try:
 except ImportError:
     sys.exit("pyserial missing: .venv/bin/pip install pyserial")
 
-PORT = sys.argv[1] if len(sys.argv) > 1 else "/dev/cu.usbserial-10"
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+FLAGS = [a for a in sys.argv[1:] if a.startswith("--")]
+PORT = ARGS[0] if ARGS else "/dev/cu.usbserial-10"
+# Stage A is the default and writes NOTHING to calibration storage.
+# Stage B (calibration) is deliberately opt-in -- see the note in main().
+STAGE = "b" if "--stage-b-calibration" in FLAGS else "a"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "captures" / "raw"; OUT.mkdir(parents=True, exist_ok=True)
 
@@ -217,7 +228,12 @@ def save():
 
 
 def main():
-    print(f"CR30 human session on {PORT}")
+    print(f"CR30 human session -- STAGE {STAGE.upper()} -- on {PORT}")
+    if STAGE == "a":
+        print("Stage A writes NOTHING to calibration storage. No cap needed.")
+    else:
+        print("!! Stage B WRITES CALIBRATION STORAGE. Only run this if the")
+        print("!! calibration procedure has been established. See CALIBRATION.md.")
     print("Nothing is sent until you press Enter at each prompt.\n")
     with serial.Serial(PORT, 115200, timeout=0.05, bytesize=8, parity="N",
                        stopbits=1, rtscts=False, dsrdtr=False) as ser:
@@ -227,43 +243,56 @@ def main():
         p = phase("job record before", "BB 13 -- two u32 LE Unix timestamps + ASCII label")
         tx(ser, JOBREC, "BB 13 00 00", 2.0, p)
 
-        # -- 1. measurement with whatever calibration the device already has
-        ask("Hold the CR30 on a MID-GREY or coloured patch, flat, and keep it there.")
-        measure(ser, "patch, BEFORE any calibration this session",
-                "answers: is calibration a precondition, and what happens without it")
-        fingerprint(ser, "after pre-calibration measurement")
+        if STAGE == "b":
+            ask("STAGE B: follow the device's OWN calibration procedure prompts.")
+            p = phase("black calibration", "BB 10 00 00 -- WRITES calibration storage")
+            t0 = time.perf_counter()
+            tx(ser, CAL_BLACK, "BB 10 00 00 black cal", 20.0, p)
+            p["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+            fingerprint(ser, "after black calibration")
+            ask("Place the CR30 squarely on the WHITE TILE.")
+            p = phase("white calibration", "BB 11 00 00 -- WRITES calibration storage")
+            t0 = time.perf_counter()
+            tx(ser, CAL_WHITE, "BB 11 00 00 white cal", 20.0, p)
+            p["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+            fingerprint(ser, "after white calibration")
 
-        # -- 2. black calibration
-        ask("Put the BLACK CAP on the CR30 (or place it on the black tile), fully seated.")
-        p = phase("black calibration", "BB 10 00 00 -- WRITES calibration storage")
-        t0 = time.perf_counter()
-        tx(ser, CAL_BLACK, "BB 10 00 00 black cal", 20.0, p)
-        p["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)
-        fingerprint(ser, "after black calibration")
+        # -- 1. measurement using whatever calibration the device already holds
+        ask("Hold the CR30 flat on a MID-GREY or coloured patch, and keep it there.")
+        measure(ser, "patch, with the device's existing calibration",
+                "baseline: does a measurement work at all without us calibrating?")
+        fingerprint(ser, "after first measurement")
 
-        # -- 3. white calibration
-        ask("Place the CR30 squarely on the WHITE CALIBRATION TILE. It must be clean\n"
-            "         and correctly seated -- this OVERWRITES the stored white calibration.")
-        p = phase("white calibration", "BB 11 00 00 -- WRITES calibration storage")
-        t0 = time.perf_counter()
-        tx(ser, CAL_WHITE, "BB 11 00 00 white cal", 20.0, p)
-        p["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)
-        fingerprint(ser, "after white calibration")
+        # -- 2. LOW-signal control. No black tile exists on this unit: the
+        #       magnetic cap holds the WHITE tile. Pointing the aperture into
+        #       open air is the achievable low-reflectance reference, and it
+        #       involves no magnet, so it cannot trigger a calibration.
+        ask("Hold the CR30 UP IN THE AIR, aperture pointing into the room,\n"
+            "         at least 30 cm from any surface. Hold it steady.")
+        lo = measure(ser, "AIR (low-signal control)",
+                     "a correct decode must read LOW -- near zero, no light returns")
 
-        # -- 4. positive control on the white tile
-        print("\n  (leave it on the white tile)")
-        ask("Keep the CR30 on the WHITE TILE.")
-        wp = measure(ser, "WHITE TILE (positive control)",
-                     "a correct decode must read near-flat and near-maximum")
+        # -- 3. HIGH-signal control, deliberately NOT the white tile: plain
+        #       paper carries no magnet, so this control cannot be corrupted by
+        #       the cap-triggers-calibration behaviour the operator reported.
+        ask("Place the CR30 flat on PLAIN WHITE PAPER (an unprinted margin is fine).")
+        hi = measure(ser, "WHITE PAPER (high-signal control)",
+                     "a correct decode must read HIGH and fairly flat")
 
-        # -- 5. the other end
-        ask("Put the BLACK CAP back on.")
-        bp = measure(ser, "BLACK CAP (negative control)",
-                     "a correct decode must read near-minimum")
+        ls, hs = lo.get("spectrum"), hi.get("spectrum")
+        if ls and hs:
+            LOG["control_air_mean"] = round(statistics.fmean(ls), 3)
+            LOG["control_paper_mean"] = round(statistics.fmean(hs), 3)
+            ok = statistics.fmean(hs) > statistics.fmean(ls)
+            LOG["control_ordering_correct"] = ok
+            print(f"\n    CONTROL: air {statistics.fmean(ls):.2f} vs "
+                  f"paper {statistics.fmean(hs):.2f} -- ordering correct: {ok}")
+            if not ok:
+                print("    !! The decode is suspect. Report this before continuing.")
 
-        # -- 6. a patch, three times without lifting
-        ask("Place the CR30 on a COLOURED PATCH (a saturated one -- red, cyan or\n"
-            "         magenta is ideal) and DO NOT LIFT IT until told.")
+        # -- 4. a patch, three times without lifting
+        ask("Place the CR30 on a COLOURED PATCH (saturated -- red, cyan or magenta\n"
+            "         is ideal) and DO NOT LIFT IT until told.")
         reps = [measure(ser, f"patch A, read {i+1} of 3 (not lifted)",
                         "repeatability without repositioning") for i in range(3)]
         specs = [r.get("spectrum") for r in reps if r.get("spectrum")]
@@ -272,7 +301,7 @@ def main():
             LOG["repeatability_worst_band_sd"] = round(max(band), 5)
             print(f"\n    repeatability over {len(specs)} reads, worst band SD = {max(band):.5f}")
 
-        # -- 7. is a measurement cached?
+        # -- 5. is a measurement cached?
         p = phase("cache probe", "re-fetch the chunks WITHOUT re-triggering")
         again = bytearray()
         for i, c in enumerate(CHUNKS):
@@ -283,7 +312,7 @@ def main():
         print(f"    re-fetch identical to the last measurement: "
               f"{p['identical_to_last_measurement']}")
 
-        # -- 9. button-triggered reading
+        # -- 6. button-triggered reading
         ask("Place the CR30 on ANOTHER patch and press its own MEASURE BUTTON once.\n"
             "         Then press Enter here. (Do not lift it.)")
         p = phase("button press", "listening for unsolicited traffic, 15 s")
@@ -307,7 +336,29 @@ def main():
             if len(rx) == 60: got += rx[5:55]
         p2["body"] = bytes(got).hex()
 
-        # -- 10. more patches, for the spectral-rank question
+        # -- 7. THE MAGNET OBSERVATION, tested passively.
+        #       Operator reports that attaching the cap (or any magnet) can make
+        #       the device treat a reading as a calibration -- consistent with a
+        #       hall sensor. We send NOTHING here; we only listen and then check
+        #       whether device state moved.
+        ask("Attach the MAGNETIC CAP to the CR30 and leave it on.\n"
+            "         Do NOT press any button. Then press Enter here.")
+        p = phase("magnet / cap attached (passive)",
+                  "operator-reported hall-sensor behaviour -- we send nothing, we listen")
+        t0 = time.perf_counter(); un = bytearray(); marks = []
+        while time.perf_counter() - t0 < 10.0:
+            n = ser.in_waiting
+            if n: un += ser.read(n); marks.append(round(time.perf_counter() - t0, 3))
+            else: time.sleep(0.02)
+        p["unsolicited_bytes"] = len(un); p["unsolicited"] = bytes(un).hex()
+        p["arrival_times_s"] = marks
+        print(f"    unsolicited bytes while the cap was attached: {len(un)}")
+        p2 = phase("job record with cap attached", "did device state move?")
+        tx(ser, JOBREC, "BB 13 00 00", 2.0, p2)
+        fingerprint(ser, "cap attached")
+        ask("Take the CAP OFF again.")
+
+        # -- 8. more patches, for the spectral-rank question
         for k in range(4):
             ask(f"Place the CR30 on a DIFFERENT patch ({k+1} of 4) -- as varied in colour\n"
                 f"         as you can manage (a saturated primary, a dark one, a pastel).")

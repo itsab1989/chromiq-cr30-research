@@ -1,6 +1,49 @@
 # CALIBRATION.md
 
-**Status: not started.**
+**Status: not started — and the prior art's premise is already wrong.**
+
+## ⚠ This unit has NO black tile — operator report, 2026-08-28
+
+Reported by the device's owner:
+
+> *"The cap that magnetically attaches to the instrument contains the white
+> tile, but I don't see a black one anywhere. When the cap is attached, or any
+> other magnet, the device takes the reading as a calibration (at least
+> sometimes)."*
+
+**Confidence: CORROBORATED** — a direct observation of the physical device,
+consistent with the prior art's own claim that cap presence is sensed by a hall
+sensor, but contradicting its assumption of a *separate black tile*.
+
+Two consequences, both of which changed the experiment design:
+
+1. **`BB 10` ("black calibration") has no established procedure on this unit.**
+   Sending it blind, with no black reference to present, could leave the stored
+   calibration in an unknown state. It is therefore **not sent** in the default
+   session. `tools/run_human_session.py` gates both calibration writes behind
+   `--stage-b-calibration`.
+2. **The magnet is a confound for any control that uses the cap.** The original
+   design used "measure on the white tile" as its positive control and "measure
+   on the black cap" as its negative — both require the cap, so if attaching it
+   converts a reading into a calibration, **both controls would have measured
+   the wrong thing while appearing to work.** They were replaced with
+   **open air** (low) and **plain paper** (high), neither of which involves a
+   magnet.
+
+**HYPOTHESIS** (untested): black/dark calibration on this device is not a user
+action with a black tile at all — it may be performed internally with the
+illumination off, either on demand or as part of every measurement. Many modern
+45°/0° instruments work this way. If so, `BB 10` may do something other than
+what the prior art labels it.
+
+**HYPOTHESIS** (untested): the intended user flow is *attach cap → press button
+→ device white-calibrates itself*, with the hall sensor telling the firmware
+that what it is looking at is the white reference. The operator's report is
+exactly what that design would feel like in use.
+
+The passive magnet phase in stage A tests this **without sending anything**: the
+cap goes on, we listen for unsolicited traffic and then re-read device state.
+
 
 **CORROBORATED** (`PRIORART-001`, second unit, vendor traffic):
 `BB 10 00 00` = black calibration, `BB 11 00 00` = white calibration. Both

@@ -77,26 +77,67 @@ def main():
                         "baseline for the calibration-integrity check")
         out["before"] = report("before ", r1.get("spectrum"))
 
-        # --- 2. cap ON, READ-ONLY: what is already in the buffer?
-        hs.ask("Attach the MAGNETIC CAP, correct way round (white tile inward).\n"
-               "         Press NO button on the device.")
-        p = hs.phase("capped: read-only chunk fetch",
-                     "NO trigger sent -- what does the buffer already hold?")
-        vals = []
-        for i, c in enumerate(hs.CHUNKS):
-            rx = hs.tx(ser, c, f"BB 01 {0x10+i:02X} refetch (no trigger)", 5.0, p)
-            if len(rx) == 60 and rx[2] in (0x10, 0x11, 0x12):
-                import struct
-                vals += list(struct.unpack("<12f", rx[6:54]))
-        p["spectrum"] = [round(x, 6) for x in vals[:31]]
-        out["capped_no_trigger"] = report("capped, no trigger", p["spectrum"])
+        # --- 2. engage the gate, and PROVE it is engaged before measuring.
+        #     The hall sensor is POSITIONAL (operator, 2026-08-28): attaching
+        #     the cap does not always trigger it. Without confirming the gate
+        #     is on, a "USB measured normally" result would be ambiguous --
+        #     bypassed gate, or gate never engaged? So we confirm on the
+        #     device's own display first, and retry as often as needed.
+        print("\n" + "=" * 72)
+        print("  The magnet effect is POSITIONAL and may take a few attempts.")
+        print("  We confirm it on the display BEFORE trusting anything over USB.")
+        print("=" * 72)
+        engaged, attempts = False, []
+        while not engaged:
+            hs.ask("Attach the CAP (or hold a magnet) so the effect triggers, then\n"
+                   "         press the device's OWN BUTTON once. Read the display.")
+            p = hs.phase(f"button press with magnet, attempt {len(attempts)+1}",
+                         "listening 8 s for the unsolicited frame")
+            import time
+            t0 = time.perf_counter(); un = bytearray()
+            while time.perf_counter() - t0 < 8.0:
+                n = ser.in_waiting
+                if n: un += ser.read(n)
+                else: time.sleep(0.02)
+            p["unsolicited_bytes"] = len(un); p["unsolicited"] = bytes(un).hex()
+            print(f"    unsolicited bytes from that button press: {len(un)}")
+            ans = input("  Does the display show the WHITE-TILE values "
+                        f"(about L*{SCREEN_LAB[0]:.1f})? [y/n/q] > ").strip().lower()
+            attempts.append({"attempt": len(attempts) + 1,
+                             "unsolicited_bytes": len(un),
+                             "operator_says_gated": ans.startswith("y")})
+            if ans.startswith("q"):
+                hs.LOG["aborted"] = "operator could not reproduce the magnet effect"
+                print("\n  Fine -- that is itself a result. Recorded.")
+                break
+            engaged = ans.startswith("y")
+            if not engaged:
+                print("  Not engaged. Reseat the magnet and try again.")
+        hs.LOG["gate_attempts"] = attempts
+        hs.LOG["gate_engaged"] = engaged
 
-        # --- 3. cap ON, TRIGGERED: the actual question
-        p2 = hs.phase("capped: TRIGGERED measurement",
-                      "the question -- is the USB path gated like the display?")
-        cap = hs.measure(ser, "CAPPED, host-triggered", "cap on, white tile inward")
-        out["capped_triggered"] = report("capped, triggered", cap.get("spectrum"))
-        hs.fingerprint(ser, "after capped measurement")
+        if engaged:
+            # 2b. what did that GATED BUTTON measurement leave in the buffer?
+            p = hs.phase("gated button measurement: fetch chunks",
+                         "no trigger sent -- read what the button press produced")
+            vals = []
+            for i, c in enumerate(hs.CHUNKS):
+                rx = hs.tx(ser, c, f"BB 01 {0x10+i:02X} after gated button", 5.0, p)
+                if len(rx) == 60 and rx[2] in (0x10, 0x11, 0x12):
+                    import struct
+                    vals += list(struct.unpack("<12f", rx[6:54]))
+            p["spectrum"] = [round(x, 6) for x in vals[:31]]
+            out["gated_button"] = report("gated button ", p["spectrum"])
+
+            # --- 3. THE QUESTION: host-trigger while the gate is engaged.
+            print("\n  Do NOT move the instrument or the magnet now.")
+            hs.ask("Leave everything exactly as it is.")
+            cap = hs.measure(ser, "CAPPED + gate confirmed, host-triggered",
+                             "the question -- is the USB path gated like the display?")
+            out["capped_triggered"] = report("USB triggered", cap.get("spectrum"))
+            hs.fingerprint(ser, "after capped measurement")
+        else:
+            cap = {}
 
         # --- 4. same patch again, cap OFF -- integrity check
         hs.ask("Take the CAP OFF. Put the CR30 back on THE SAME patch as step 1,\n"
@@ -114,7 +155,7 @@ def main():
             print("       a large one would mean calibration moved)")
 
         # --- 5. does the capped reading match what the SCREEN shows?
-        cs = cap.get("spectrum")
+        cs = cap.get("spectrum") if engaged else None
         if cs:
             for nm, il in (("D65", D65), ("D50", D50)):
                 d = de76(spectrum_to_lab(cs, il), SCREEN_LAB)

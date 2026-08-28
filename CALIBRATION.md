@@ -78,6 +78,33 @@ corrupt the stored white reference — which was the risk that gated stage B.
 attached? If they read approximately L\*=100, a\*=0, b\*=0 the "stored white
 reference" reading is essentially confirmed. Asked of the operator.
 
+## The hall sensor is POSITIONAL — operator refinement, 2026-08-28
+
+> *"With the cap on the wrong way, or another magnet, it does not always show
+> the values for the white tile. It seems the magnet must be in the correct
+> position for this to happen. I might need a few attempts to reproduce this."*
+
+**Confidence: CORROBORATED.** This explains the "at least sometimes" in the
+original report: the behaviour is **positional, not intermittent**.
+
+**It does not weaken the previous conclusion.** In the reversed-cap trials where
+the effect *did* appear, green was under the aperture and the reading was still
+the white-tile value — so when the sensor engages, the optical input is ignored.
+What is new is that engagement depends on magnet placement.
+
+⚠ **It does change the experiment.** `EXP-MEAS-002` originally assumed that
+attaching the cap engages the gate. If it does not, a "USB measured normally"
+result is **ambiguous** — bypassed gate, or gate never engaged? That is a probe
+that cannot distinguish its own hypotheses. The experiment now **confirms
+engagement on the device's own display first**, retrying as often as needed, and
+records every attempt. A run that never engages is recorded as such rather than
+reported as a measurement.
+
+It also relocates the evidence: the operator sees the canned value after
+**pressing the device's own button**, so a gated *button* measurement is
+directly capturable over USB — the unsolicited frame is recorded, then the
+chunks are fetched, before any host trigger is sent.
+
 **Open, needs a protocol test** (`EXP-MEAS-002`, specified, unrun): does a
 *host-triggered* measurement with the magnet present return a canned spectrum
 too, or does the USB path bypass the hall-sensor logic entirely? The two answers

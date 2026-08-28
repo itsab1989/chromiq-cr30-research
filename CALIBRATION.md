@@ -59,6 +59,37 @@ The check that would have caught it instantly was staring at the output:
 than a clever ratio statistic. `tools/probe_calibration_check.py` must test that
 first.
 
+## ✅ RESTORED, and the restore procedure is now VERIFIED
+
+Cap attached the **correct** way round (white tile toward the aperture) plus one
+press of the device's own button. `EXP-CAL-002`, second run:
+
+| | mean %R | min | max | over 100 %? |
+|---|---|---|---|---|
+| Baseline (`EXP-MEAS-001`) | 85.84 | 63.70 | 96.44 | no |
+| Corrupted (green reference) | **156.78** | — | **193.79** | **yes** |
+| **After restore** | **88.54** | 67.73 | 98.96 | no |
+
+Band ratio against baseline: **1.032 ± 0.010**, ΔE₇₆ **1.05**.
+
+**This is the white-calibration procedure for this unit, established
+empirically**: there is no menu, no command, and no black tile — you seat the
+cap correctly and press the button. It is what the operator described in the
+very first exchange.
+
+⚠ **The restored calibration is not bit-identical to the original: a uniform
++3.2 % offset remains**, with a band-ratio spread of only 0.010, i.e.
+spectrally **neutral**. That is the expected difference between two independent
+white calibrations with slightly different cap seating — not damage. But it
+means readings from before and after the corruption are offset by a scalar.
+For `EXP-SPEC-001` rank analysis a scalar factor is harmless; for absolute
+comparisons it must be accounted for.
+
+**Corpus note:** `EXP-MEAS-001` and `EXP-MEAS-002` were taken under the original
+calibration, `EXP-CAL-002`'s second run under the restored one. `EXP-MEAS-003`'s
+`patch_after` was taken under the **green** reference and is unusable for
+anything but the corruption analysis.
+
 ## ⚠ DO NOT recalibrate this unit — standing instruction
 
 **Superseded for the specific case of restoring the white tile** — see above.

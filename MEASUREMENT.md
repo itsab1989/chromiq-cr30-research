@@ -383,6 +383,28 @@ value.** The trigger is not ignored and the cache is not being re-read — the
 buffered patch was discarded and replaced with the stored constant. This
 supersedes the ambiguity in `EXP-MEAS-002`.
 
+### The strongest single result in this project so far
+
+The operator attached the cap **reversed**, putting the **green** face under the
+aperture, where `EXP-MEAS-002` had the **white tile** under it. The two gated
+spectra are **bit-identical**:
+
+```
+EXP-MEAS-002  white tile under aperture : 70.3943 74.8234 77.4351 78.3985 ...
+EXP-MEAS-003  GREEN       under aperture : 70.3943 74.8234 77.4351 78.3985 ...
+max absolute difference across all 31 float32 bands : 0.0
+```
+
+Two different runs, two different optical targets, **zero difference to the last
+bit**. Not "similar" — identical. A measurement cannot do this. **VERIFIED: the
+gated reading is a stored constant with no dependence whatsoever on the optical
+input.**
+
+This was not the designed procedure — the script asked only for "the position
+that triggers the effect". Reversing the cap turned the run into a controlled
+optical-independence experiment for free, and it is stronger evidence than the
+experiment as specified would have produced.
+
 ### ⚠ The gate is INVISIBLE to the host — and this is the important part
 
 **The trigger reply's header carried offset 24 = `0x00`** — the same value as

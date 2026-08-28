@@ -207,3 +207,93 @@ the corpus is a second unit and nonlinearity is unexcluded. Until
 EXP-SPEC-001a/b run on our unit, any `.ti3` ChromIQ writes from a CR30 should
 carry a provenance keyword recording that the spectral independence is
 corroborated rather than verified. See `INTEGRATION.md`.
+
+
+---
+
+## EXP-MEAS-002 — the magnet gate, and what it did *not* settle
+
+Ran 2026-08-28, gate engaged on the first attempt.
+`captures/public/EXP-MEAS-002-magnet-gating.json`.
+
+### The canned value is a real white-tile spectrum — VERIFIED
+
+Flat at ~79 % reflectance from 420–700 nm with a rolloff to 70.4 % at 400 nm;
+total range 10.3 points. For comparison, the plain paper measured in
+`EXP-MEAS-001` ranges over 32.7 points. **This is the shape of a white ceramic
+calibration tile**, so the device is displaying a *stored characterisation of
+its own reference tile*, not a placeholder and not a live reading.
+
+### Our decode reproduces the device's own firmware — VERIFIED, and it is a strong check
+
+| | L\* | a\* | b\* |
+|---|---|---|---|
+| Device's own display | 91.64 | −0.78 | +1.36 |
+| Our decode → CIE 1931 2°/**D65** | **91.661** | **−0.760** | **+1.305** |
+| Our decode → CIE 1931 2°/D50 | 91.661 | −0.560 | +1.251 |
+
+**ΔE₇₆ = 0.062 against D65.** This is an independent cross-validation of the
+*entire* chain — chunk layout, byte order, float format, band mapping, percent
+scale, and the colour maths — against the vendor firmware's own arithmetic. It
+is much stronger evidence than the air/paper control, because it matches a
+specific number the device computed itself.
+
+⚠ **It does NOT establish that the display uses D65.** The spectrum is nearly
+flat, so both illuminants give an *identical* L\* to three decimals and differ
+only in a\* and b\* by ~0.2. D65 fits four times better, but a near-neutral
+sample is the worst possible discriminator between illuminants. **PROBABLE, not
+VERIFIED.** A saturated patch would settle it in one reading.
+
+### A candidate gate flag at offset 24 — HYPOTHESIS
+
+| Frame | offset 24 |
+|---|---|
+| Gated button press (magnet engaged) | **`0x01`** |
+| All 14 other `BB 01 09` headers, both runs | `0x00` |
+
+The only difference between the two *button* frames across both sessions is the
+magnet, so offset 24 is a plausible **"reading was taken in magnet mode"** flag —
+exactly what a ChromIQ backend would need to reject such a reading.
+
+**One observation. Not verified.** It needs replication before anything relies
+on it.
+
+### ⚠ What this run did NOT establish
+
+**Whether a host-triggered measurement is gated. It is still open.**
+
+The capped host-trigger returned data byte-identical to the preceding gated
+button read — but its own header carried offset 24 = `0x00`, *not* the `0x01`
+the button frame carried. Combined with the VERIFIED fact that measurements are
+cached, the most economical explanation is that **the host trigger did not
+produce a new measurement at all, and we re-read the button's data.**
+
+That is the confound the experiment was meant to avoid and did not: the gated
+button press *preceded* the host trigger, so it had already loaded the buffer
+with the very value we were testing for.
+
+`EXP-MEAS-003` separates the three possibilities by ensuring the buffer holds a
+**distinctive patch** at the moment the magnet is engaged, with no button press
+in between:
+
+| Host-trigger result | Conclusion |
+|---|---|
+| the canned tile value | the USB path **is** gated |
+| the previous patch | the trigger is **ignored** while gated (cache re-read) |
+| a genuine white-tile reading, unlike both | USB **bypasses** the gate |
+
+### Calibration integrity — VERIFIED
+
+ΔE₇₆ between the same patch before and after the capped phase: **0.438**,
+across a lift-and-replace. `EXP-MEAS-001` measured 0.056 % worst-band SD without
+lifting, so this is ordinary repositioning error. **Nothing moved the stored
+calibration**, which supports the conclusion in `CALIBRATION.md` that a magnet
+cannot corrupt it.
+
+### Either way, ChromIQ must defend against this
+
+Whether the USB path returns a canned value or silently repeats the last one,
+**the observable symptom is the same: consecutive patches returning identical
+spectra.** A live backend must detect byte-identical consecutive readings and
+refuse them, because both failure modes produce data that is plausible,
+self-consistent, and completely wrong.

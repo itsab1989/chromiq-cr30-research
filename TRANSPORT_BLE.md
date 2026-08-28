@@ -24,6 +24,25 @@ match on the device's own reported id, which only the USB work made available.
 advertised **WeChat mini program** support. Only `ffe0` appeared in the connected
 GATT tree.
 
+## Single connection, and it stops advertising when taken — VERIFIED
+
+Attempting to resolve the device by name while the vendor app was connected
+failed three times in a row: **the CR30 stops advertising once a central
+connects.** It is a single-connection peripheral.
+
+Two consequences:
+
+1. **Connection state is observable without asking the operator.** If the device
+   is advertising, nothing holds it; if it is not, something does. That is a
+   free state signal for any future probe.
+2. Our earlier Mac connections genuinely held the device — it was free at the
+   time — so "connected but silent" was a real connection, not a phantom.
+
+⚠ **This broke `EXP-BLE-008` as first written**, which resolved the device
+*after* asking the operator to connect the app: an impossible order that could
+only ever fail. Three wasted runs. The device must be resolved **before** the
+app takes it and the handle reused afterwards.
+
 ## GATT — VERIFIED
 
 | Characteristic | Properties |

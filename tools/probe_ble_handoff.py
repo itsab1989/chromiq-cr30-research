@@ -7,6 +7,8 @@ OBSERVATIONS THIS IS BUILT ON
   * The indicator stayed lit ~10 s after USB was unplugged, so activation
     persists briefly rather than ending instantly.
   * Our own GATT connections never light it, and are never answered.
+  * The device STOPS ADVERTISING while the app holds it -- one connection only.
+    So it must be resolved before the app takes it (this cost one run).
 
 IF activation persists for a few seconds after the app lets go, then connecting
 in that window should find a device that is awake and willing to talk. That
@@ -30,20 +32,29 @@ WINDOW = 40
 
 async def main():
     print("EXP-BLE-008 -- catching the device while it is still activated\n")
-    print("  Step 1: open the vendor app on your phone and CONNECT to the CR30.")
+    print("  The CR30 STOPS ADVERTISING while the phone app is connected: it is a")
+    print("  single-connection peripheral. So it must be resolved BEFORE the app")
+    print("  takes it, and the handle reused afterwards.\n")
+
+    print("  Step 1: make sure the app is NOT connected (close it, or turn the")
+    print("          phone's Bluetooth off).")
+    input("\n  press Enter when the app is disconnected > ")
+
+    print("\n  resolving the device ...")
+    dev = await BleakScanner.find_device_by_name("CM454M0223", timeout=20.0)
+    if dev is None:
+        print("  Not advertising even with the app disconnected.")
+        print("  Wake the device (press its button) and re-run.")
+        return
+    print("  resolved and cached.\n")
+
+    print("  Step 2: NOW connect the CR30 in the phone app.")
     print("          Wait until the Bluetooth indicator is lit on the device.")
     input("\n  press Enter once the indicator is LIT > ")
 
-    print("\n  resolving the device (a few seconds) ...")
-    dev = await BleakScanner.find_device_by_name("CM454M0223", timeout=20.0)
-    if dev is None:
-        print("  not advertising -- it may be busy with the phone. That is fine;")
-        print("  disconnect the app first, then re-run.")
-        return
-    print("  resolved.\n")
-    print("  Step 2: DISCONNECT the app (or force-quit it / turn the phone's")
-    print("          Bluetooth off). Do NOT power the device off.")
-    print("          Then press Enter here IMMEDIATELY -- the window is short.")
+    print("\n  Step 3: DISCONNECT the app (or force-quit it / phone Bluetooth off).")
+    print("          Do NOT power the device off.")
+    print("          Press Enter here IMMEDIATELY -- the window is short.")
     input("\n  press Enter the moment the app is disconnected > ")
 
     log = {"experiment": "EXP-BLE-008",

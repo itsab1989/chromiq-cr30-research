@@ -71,6 +71,20 @@ class CR30:
         self.model = ident.model
         return ident
 
+    def trigger(self) -> None:
+        """Ask the device to measure NOW (USB only).
+
+        ⚠ Not to be used near a magnet -- see `usb_measure.trigger`. The spot
+        workflow does not need it: the operator presses the instrument's own
+        button and `read_measurement` collects the result.
+        """
+        if self.kind != "usb":
+            raise NotImplementedError(
+                "no host trigger is known on BLE; the operator presses the "
+                "instrument's own button (TRANSPORT_BLE.md)")
+        from . import usb_measure
+        usb_measure.trigger(self._t)
+
     def read_measurement(self, *, enforce: bool = True) -> Measurement:
         """Read the device's stored measurement.
 
@@ -79,10 +93,14 @@ class CR30:
         result is gated by `Measurement.check_usable`, so a tile constant or a
         bit-identical repeat raises instead of being returned.
         """
-        if self.kind != "ble":
-            raise NotImplementedError(
-                "USB measurement read is not wired into this API yet; use the "
-                "session-level API. See INTEGRATION.md.")
+        if self.kind == "usb":
+            from . import usb_measure
+            m = usb_measure.read_stored(self._t)
+            m.device_model = self.model or "CR30"
+            if enforce:
+                m.check_usable(self._previous)
+            self._previous = m
+            return m
         raw = self._t.ask(ble.READ_MEASUREMENT)
         i = raw.find(ble.MEASUREMENT_HDR)
         if i < 0:

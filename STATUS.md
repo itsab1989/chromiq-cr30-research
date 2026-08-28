@@ -78,20 +78,60 @@ experiment is re-scoped from a sweep to individually logged single probes.
 
 ## Hardware lease
 
-Held by `[CR30-USB]` at the time of the session-2 audit. `[CR30-SKEPTIC]` used
-no hardware.
+**FREE.** `[CR30-USB]` held it through session 2 and released it. Device state
+at release: plugged in, idle, port free, **identity fingerprint byte-identical
+to the session-start baseline**. Nothing was written to the device — no
+firmware, no calibration, no parameter. `BB 10` / `BB 11` (the calibration
+writes) were never sent.
 
 ## Reference implementation
 
-`src/cr30/` — framing and identity only, with **four open defects** filed by
-`[CR30-SKEPTIC]` (`INTEGRATION.md` and issue #1): silent frame repair via
-`parse(verify=False).to_bytes()`; fixed-length identity fields that truncate
-silently; `parse_identity()` not checking the echoed sub-command;
-`test_roundtrip_is_byte_exact` near-vacuous.
+`src/cr30/` — framing, identity, **transport (ABC + serial + replay)**,
+**discovery** (the only OS-aware module) and **session** (commands, with an echo
+guard). `import cr30` does not import pyserial, and a test enforces it.
 
-**331 tests pass with no hardware attached.**
+**All four defects filed by `[CR30-SKEPTIC]` are fixed**, each with a regression
+test: silent frame repair (`Frame.is_intact()` / `to_bytes_as_received()`);
+fixed-length identity fields (now read to the NUL, with a `suspect_fields`
+list and `is_cr30()` refusing a merely-`CR30`-prefixed model);
+`parse_identity()` now rejects a reply whose echoed sub-command does not match
+the request, and any frame known to be corrupt; `test_roundtrip_is_byte_exact`
+now compares the 59 informative bytes and proves the comparison has teeth.
+
+**`tools/redact.py` objection 1 is fixed**: every capture now publishes
+`_synthesised_checksums`, naming each frame whose byte 59 the redactor rewrote,
+so nobody has to rediscover that those frames are not checksum evidence. Of the
+nine `EXP-*` captures, seven contain exactly one such frame and one contains none.
+
+**406 tests pass with no hardware attached.**
 
 ```bash
 .venv/bin/pip install pyserial bleak pytest numpy
 .venv/bin/python -m pytest tests/ -q
 ```
+
+
+---
+
+## Session 2, hardware — `[CR30-USB]`, 2026-08-28
+
+Six experiments, ~380 device transactions, no writes to the device.
+
+| Fact | Evidence | Confidence |
+|---|---|---|
+| **The checksum is not enforced on the `0xBB` class either** — proved on `BB 13`, a command the device demonstrably acts on | `EXP-USB-003` | VERIFIED |
+| **The device ECHOES commands it does not implement.** A 60-byte reply is not evidence a command exists | `EXP-USB-003` | VERIFIED |
+| `BB 28` ("query parameters") and `BB 17` ("initialize") are echoes on this firmware — itohio's handshake is calling two commands that do nothing | `EXP-USB-003` | PROBABLE |
+| `BB 13` is a real command: it writes frame offsets 5–10 | `EXP-USB-003` | VERIFIED |
+| **A reply is the request buffer mutated in place.** For `AA 0A` the device writes 5–54; offsets 4, 55, 56, 57 come back holding the caller's own bytes | `EXP-USB-006` | VERIFIED |
+| **Byte 58 is device-set, never echoed, never validated on the request side** | `EXP-USB-006` | VERIFIED |
+| **A frame must be one `write()` of exactly 60 bytes**, or the device answers with silence | `EXP-USB-005c`, 4/4 splits | VERIFIED |
+| **Two frames in one write get no reply**; recovery is immediate, no reopen | `EXP-USB-005b` | VERIFIED |
+| **The 300 ms post-open settle delay is unnecessary** (10/10 at 0 ms) | `EXP-USB-005` | VERIFIED |
+| **No inter-command delay is needed** (30/30 at 0 ms) | `EXP-USB-005` | VERIFIED |
+| Round trip **0.767 ms** median, 1.49 ms max, over 100 transactions | `EXP-USB-005` | VERIFIED |
+| **No UART is in the path**: a frame completes in 0.77 ms where 115200 baud needs 5.2 ms, and at 300 baud (2 s on the wire) it still took 0.97 ms. 7E1/8N2/7N1/8O1 byte-identical | `EXP-USB-005` | VERIFIED |
+| Silent when idle over **90 s** and over 12 min of polling | `EXP-USB-005/-005c` | VERIFIED |
+| **ArgyllCMS's serial device-scan probe strings are inert on a CR30** — 8 strings × 4 baud rates = 32 probes, 0 bytes back, fingerprint unchanged 32/32 | `EXP-USB-007` | VERIFIED |
+| `BB 13`'s second `u32` is not a command counter, not a connection counter, not a fast clock; it steps **+361 every ~361 s** | `EXP-USB-005b/c` | DISPROVEN (three readings) / PROBABLE (slow clock) |
+| What byte 5 of the `BB 13` reply (`0x51`) means | — | **NOT DETERMINED** |

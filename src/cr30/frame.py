@@ -36,23 +36,66 @@ def checksum(data: bytes) -> int:
     VERIFIED against every device-originated frame captured so far
     (EXP-MAC-USB-001). Note this INCLUDES the marker byte at index 58.
 
-    This deliberately differs from itohio/color-science, which sums 0..57 and
-    subtracts 1 for 0xBB starts. That rule is off by exactly +1 on real device
-    frames, because it omits the marker (0xFF == -1 mod 256). See PROTOCOL.md §2.
+    Relation to itohio/color-science, stated precisely (PROTOCOL.md 2):
+
+    * Their 0xAA branch, `sum(0..57)`, is **DISPROVEN** -- off by exactly +1 on
+      every real 0xAA frame, because it omits the marker (0xFF == -1 mod 256).
+    * Their 0xBB branch, `sum(0..57) - 1`, is **arithmetically identical to this
+      rule on any frame whose marker byte 58 is 0xFF**, and differs by exactly 1
+      when it is 0x00. On the four command classes EXP-USB-006 could reach
+      (`AA 0A`, `BB 13`, `BB 17`, `BB 28`) the device sets byte 58 to 0xFF
+      whatever the request contained, so those frames cannot separate the rules.
+
+      **The measurement header can, and does.** `BB 01 09` carries marker 0x00:
+      20 such frames in the vendor corpus (PRIORART-001, a second unit) satisfy
+      `sum(0..58)` 20/20 and itohio's rule **0/20**. Across all 637 vendor
+      frames ours holds 637/637 and theirs 617/637.
+
+      So their 0xBB branch is **DISPROVEN too** -- and precisely on the frames a
+      real implementation must parse. Corrected after `[CR30-SKEPTIC]` showed
+      this docstring had over-generalised "every frame it emits" from four
+      classes to all of them (PROTOCOL.md 7.1a).
+
+    One unified rule beats a rule plus a special case. And "the published
+    checksum is wrong" is now true of both branches, for two different reasons.
     """
     return sum(data[:CHECKSUM]) % 256
 
 
 @dataclass(frozen=True)
 class Frame:
-    """One 60-byte CR30 frame."""
+    """One 60-byte CR30 frame.
+
+    `payload` is bytes 4..57 -- everything structurally between the four header
+    bytes and the marker. That is a statement about the FRAME, not about how
+    much of it the device fills in.
+
+    **The device does not write all of it.** VERIFIED (EXP-USB-006): a reply is
+    the request buffer mutated in place. For the `AA 0A` class the device
+    overwrites exactly offsets **5..54**, forces byte 58 to `0xFF` and
+    recomputes byte 59; offsets **4, 55, 56 and 57 come back holding the bytes
+    the caller sent**. Proof: a request with `A5 5A` at offsets 56-57 was
+    answered with `A5 5A` still at 56-57, and a request whose payload was a
+    ramp came back with the ramp intact at 4 and 55..57.
+
+    This retires PROTOCOL.md 6 Q1. Session 1 saw `0x00` at 56-57 in every frame
+    and could not tell whether they were payload; they were zero because the
+    *requests* were zero there. Prior art's "payload = 4..55" and this class's
+    "4..57" are both statements about the frame, and NEITHER describes the
+    response body. Use `session.RESPONSE_BODY_START/END` for that, and
+    `session.device_written_bytes()` to see what a given reply really contains.
+
+    HYPOTHESIS: the 5..54 span is command-class specific, and a measurement
+    chunk may differ. It has been measured for `AA 0A` and `BB 13` only.
+    """
 
     start: int
     cmd: int
     subcmd: int
     param: int
-    payload: bytes          # bytes 4..57 inclusive -> 54 bytes
+    payload: bytes          # bytes 4..57 inclusive -> 54 bytes (see below)
     marker: int = 0xFF
+    received_checksum: int | None = None   # set only by parse(verify=False)
 
     PAYLOAD_SIZE = MARKER - 4       # 54
 
@@ -63,12 +106,33 @@ class Frame:
 
     # -- encode ----------------------------------------------------------
     def to_bytes(self) -> bytes:
+        """Serialise, ALWAYS recomputing the checksum.
+
+        Defect filed by `[CR30-SKEPTIC]` and fixed: `parse(verify=False)`
+        followed by `to_bytes()` used to launder a corrupt frame into a
+        checksum-valid one, silently. A frame parsed with `verify=False` now
+        remembers that (`self.received_checksum`), `is_intact()` reports it, and
+        `to_bytes_as_received()` returns the ORIGINAL bytes so a corrupt capture
+        can be logged verbatim rather than repaired (CLAUDE.md 14).
+        """
         d = bytearray(FRAME_SIZE)
         d[0], d[1], d[2], d[3] = self.start, self.cmd, self.subcmd, self.param
         d[4:MARKER] = self.payload
         d[MARKER] = self.marker
         d[CHECKSUM] = checksum(d)
         return bytes(d)
+
+    def to_bytes_as_received(self) -> bytes:
+        """The frame exactly as it arrived, checksum included, never repaired."""
+        d = bytearray(self.to_bytes())
+        if self.received_checksum is not None:
+            d[CHECKSUM] = self.received_checksum
+        return bytes(d)
+
+    def is_intact(self) -> bool:
+        """False when this frame was parsed with verify=False and did not match."""
+        return (self.received_checksum is None
+                or self.received_checksum == checksum(self.to_bytes()))
 
     # -- decode ----------------------------------------------------------
     @classmethod
@@ -92,7 +156,8 @@ class Frame:
                     f"checksum 0x{data[CHECKSUM]:02X}, expected 0x{want:02X} "
                     f"for frame {data.hex()}")
         return cls(start=data[0], cmd=data[1], subcmd=data[2], param=data[3],
-                   payload=bytes(data[4:MARKER]), marker=data[MARKER])
+                   payload=bytes(data[4:MARKER]), marker=data[MARKER],
+                   received_checksum=data[CHECKSUM])
 
     @classmethod
     def build(cls, start: int, cmd: int, subcmd: int = 0, param: int = 0,

@@ -12,8 +12,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from cr30.frame import (Frame, ChecksumError, ShortFrameError, FrameError,  # noqa: E402
-                        checksum, FRAME_SIZE)
+from cr30.frame import (CHECKSUM, Frame, ChecksumError, ShortFrameError,  # noqa: E402
+                        FrameError, checksum, FRAME_SIZE)
 from cr30.identity import parse_identity  # noqa: E402
 
 CAP = ROOT / "captures" / "public"
@@ -49,22 +49,65 @@ def test_real_device_frames_pass_our_checksum(name, raw):
 
 @pytest.mark.parametrize("name,raw", FRAMES)
 def test_roundtrip_is_byte_exact(name, raw):
-    assert Frame.parse(raw).to_bytes() == raw
+    """Structural roundtrip: header, payload and marker survive unchanged.
 
-
-def test_prior_art_checksum_is_disproven():
-    """Regression guard for PROTOCOL.md §2.
-
-    If this ever passes, the finding that the published rule is wrong has been
-    invalidated and PROTOCOL.md must be revisited.
+    Defect filed by `[CR30-SKEPTIC]`: as written this test was near-vacuous.
+    `parse()` already rejects any frame whose checksum does not match, and
+    `to_bytes()` recomputes byte 59, so byte 59 could never disagree and the
+    test could only ever restate the checksum test. It now compares the 59
+    bytes that carry information, and separately asserts that a field-level
+    edit DOES change the output -- so the comparison is proved to have teeth.
     """
-    def itohio(d):
-        return (sum(d[:58]) - (1 if d[0] == 0xBB else 0)) % 256
+    f = Frame.parse(raw)
+    assert f.to_bytes()[:CHECKSUM] == raw[:CHECKSUM]
+    assert f.to_bytes() == raw
+    mutated = Frame(f.start, f.cmd, f.subcmd, f.param,
+                    bytes([f.payload[0] ^ 0xFF]) + f.payload[1:], f.marker)
+    assert mutated.to_bytes() != raw, "roundtrip comparison has no teeth"
 
-    mismatches = [r for _, r in FRAMES if itohio(r) != r[59]]
-    assert len(mismatches) == len(FRAMES), (
-        "the prior-art rule now matches some real frames; PROTOCOL.md §2 "
-        "claims it matches none")
+
+@pytest.mark.parametrize("name,raw", FRAMES)
+def test_parse_without_verify_never_launders_a_corrupt_frame(name, raw):
+    """Defect filed by `[CR30-SKEPTIC]` and fixed in frame.py.
+
+    `parse(verify=False).to_bytes()` used to turn a corrupt frame into a
+    checksum-valid one with no trace. The frame must remember what it received.
+    """
+    bad = bytearray(raw); bad[59] ^= 0xFF
+    assert bytes(bad) != raw                       # the mutation must land
+    f = Frame.parse(bytes(bad), verify=False)
+    assert not f.is_intact()
+    assert f.to_bytes_as_received() == bytes(bad)  # verbatim, never repaired
+    assert f.to_bytes() != bytes(bad)              # and the repair is visible
+    good = Frame.parse(raw)
+    assert good.is_intact()
+
+
+def itohio(d):
+    """itohio/color-science cr30reader/protocol/packets.py::calculate_checksum."""
+    return (sum(d[:58]) - (1 if d[0] == 0xBB else 0)) % 256
+
+
+def test_prior_art_checksum_fails_on_every_0xAA_frame():
+    """Regression guard for PROTOCOL.md §2 -- the NARROW, true claim.
+
+    This test used to assert the published rule matches NO frame in the corpus.
+    That claim is false and the test was a trap: on a 0xFF-marker frame the two
+    rules are arithmetically identical, so the published rule matches 617 of the
+    637 vendor frames, and the first 0xBB reply added to this corpus would have
+    failed a test while the protocol layer was correct. Raised by `[CR30-USB]`
+    in the session-2 opening assessment; the discriminating evidence is in
+    tests/test_marker_and_checksum_discriminated.py.
+    """
+    aa = [r for _, r in FRAMES if r[0] == 0xAA]
+    assert aa, "no 0xAA frames in the corpus"
+    assert all(itohio(r) != r[59] for r in aa)
+
+
+def test_the_two_rules_agree_wherever_the_marker_is_0xFF():
+    """Why the corpus in THIS file cannot settle the checksum question."""
+    ff = [r for _, r in FRAMES if r[58] == 0xFF and r[0] == 0xBB]
+    assert all(checksum(r) == itohio(r) for r in ff)
 
 
 def test_short_frame_raises_not_repairs():

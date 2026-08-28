@@ -37,19 +37,58 @@ distinguished by the protocol-level device id (`AA 0A 00`).
 Untested: whether non-8N1 framing also works. Given that line coding never
 reaches a UART, **HYPOTHESIS**: it is equally ignored. Low value to test.
 
-## Timing — observed, not yet characterised
+## Timing — MEASURED, `EXP-USB-005` (2026-08-28, `[CR30-USB]`)
 
-Identity replies arrive well within the 1.2 s drain window used by
-`tools/probe_identity.py`. Response latency has not been measured precisely;
-that belongs to a dedicated timing experiment. No inter-command delay was
-needed between the four identity queries.
+All figures from this unit over USB on macOS 15.7.9, 0.5 ms polling resolution.
+
+| | median | min | max | n |
+|---|---|---|---|---|
+| First byte of the reply | **0.735 ms** | 0.603 | 0.932 | 50 |
+| Complete 60-byte reply | **0.767 ms** | 0.706 | 1.491 | 50 |
+| Same for `BB 13` | 0.737 ms | 0.695 | 0.967 | 50 |
+
+100/100 transactions replied. A 1 s timeout is four orders of magnitude of
+headroom for identity and status commands. **Calibration and measurement are
+not characterised** — they must carry their own, longer timeouts.
+
+⚠ **Quote a latency only with its polling resolution.** The first probes of
+session 2 reported ~6.3 ms; that was a 5 ms `sleep()` in the probe, not the
+device. The device is **eight times faster** than the first measurement said.
+
+## Transport rules — VERIFIED
+
+| Rule | Evidence |
+|---|---|
+| **A frame must be one `write()` call.** 30+30, 59+1, 1+59, 20+20+20 → **no reply at all**, 4/4 | `EXP-USB-005c` |
+| **One frame per write, never two.** 120 B and 180 B → no reply; recovers on the next single-frame write with no reopen | `EXP-USB-005b` |
+| **No settle delay after open.** 10/10 valid at 0 ms, identical to 300 ms | `EXP-USB-005` |
+| **No inter-command delay.** 30/30 valid at a 0 ms gap | `EXP-USB-005` |
+| **Close/reopen is clean.** 20/20 cycles, 0 open errors | `EXP-USB-005` |
+| **Silent when idle.** 0 unsolicited bytes over 90 s, and over 12 min of polling | `EXP-USB-005/-005c` |
+| **Line coding is ignored.** 8N1 / 7E1 / 8N2 / 7N1 / 8O1 byte-identical; 300 / 115200 / 1000000 baud byte-identical | `EXP-USB-005` |
+| **Argyll's serial device-scan probes are inert.** 32 probes, 0 bytes back, identity fingerprint unchanged 32/32 | `EXP-USB-007` |
+
+The one-write rule is the trap. A buffered or chunked writer gets **silence**,
+not an error, and looks like a dead device or a wrong baud rate. It is enforced
+in `src/cr30/transport.py`, which refuses to send anything that is not exactly
+60 bytes.
+
+## No UART is in the path — VERIFIED
+
+A 60-byte frame at 115200 baud needs **5.2 ms** on the wire; the reply completes
+in **0.77 ms**. At a nominal 300 baud, 60 bytes would need **2 seconds**; the
+reply still arrived in **0.97 ms**. The CH554 bridge accepts and discards the
+line coding. This upgrades `PROTOCOL.md` §3 from a plausible story to a measured
+fact — see §7.1c there.
 
 ## Open questions
 
-1. Is a settling delay needed after opening the port? The probe uses 300 ms
-   without testing whether it is necessary.
-2. Does the device emit anything unsolicited while idle? `EXP-MAC-USB-001`
-   captured a 1.0 s passive window at each baud and saw **nothing**. This is
-   consistent with the prior-art claim that button presses produce unsolicited
-   traffic only when a button is actually pressed — untested here.
-3. Reconnect and sleep/wake behaviour: untested.
+1. ~~Is a settling delay needed after opening the port?~~ **Answered: no.**
+2. ~~Does the device emit anything unsolicited while idle?~~ **Answered: no**,
+   over 90 s and over 12 minutes. Whether a *button press* produces unsolicited
+   traffic is still untested and is phase 9 of `tools/run_human_session.py`.
+3. Sleep/wake and unplug/replug: still untested. Close/reopen is clean.
+4. Whether the one-write rule also holds on Windows and Linux, where the USB
+   stack may coalesce or split writes differently. **This is the portability
+   risk that matters**, and it needs no CR30 expertise to test — only the device
+   on another host.

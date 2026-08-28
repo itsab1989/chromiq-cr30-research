@@ -63,3 +63,20 @@
 ⚠ **`tools/redact.py` recomputes byte 59.** That makes a redacted frame a valid
 *fixture* and useless as *evidence* for any checksum rule. Never cite a redacted
 frame in support of the checksum. See `PROTOCOL.md` §0.
+
+## Session 2 tools — `[CR30-USB]`
+
+| Tool | Experiment | Hardware? |
+|---|---|---|
+| `probe_bb_class.py` | EXP-USB-003 stage 1 — does `0xBB` answer, and how? | yes |
+| `probe_bb_checksum.py` | EXP-USB-003 stage 2 — checksum enforcement on `0xBB` | yes |
+| `probe_request_fields.py` | EXP-USB-006 — what of a *request* does the device parse? | yes |
+| `probe_timing.py` | EXP-USB-005 — latency, settle delay, gaps, reopen, idle, line coding, pipelining | yes |
+| `probe_bb13_field.py` | EXP-USB-005b — what moves `BB 13`'s field; pipelining recovery | yes |
+| `probe_write_granularity.py` | EXP-USB-005c — one-write rule; 12-min drift sampler | yes |
+| `probe_argyll_scan.py` | EXP-USB-007 — ChromIQ's Argyll serial scan vs. the CR30 | yes |
+| **`run_human_session.py`** | **EXP-CAL-001 + EXP-MEAS-001 — the one human session** | yes + human |
+
+`run_human_session.py` sends only frames that are byte-identical to vendor
+traffic; `tests/test_human_session_frames.py` fails the build if that stops
+being true, or if any frame leaves `SAFETY_ENVELOPE.md`'s green list.

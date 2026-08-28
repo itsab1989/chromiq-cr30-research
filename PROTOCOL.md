@@ -251,6 +251,46 @@ rule (§2).
 finding that motivated it — that the device rewrites byte 58 and byte 59 on the
 reply — stands and is valuable; only "on every frame it emits" is too strong.
 
+### 7.1b Transport rules — VERIFIED, `[CR30-USB]`, `EXP-USB-005/-005b/-005c/-007`
+
+| Rule | Evidence |
+|---|---|
+| **One frame per `write()`.** A 60-byte frame split 30+30, 59+1, 1+59 or 20+20+20 is answered with **silence** | 4/4, `EXP-USB-005c` |
+| **Never more than one frame per write.** 120 B and 180 B → no reply. Recovers on the next single-frame write, no reopen | `EXP-USB-005b` |
+| **No settle delay after opening the port.** The session-1 probe's 300 ms was untested superstition | 10/10 valid at 0 ms; identical at 5/25/50/100/300 ms |
+| **No inter-command delay** | 30/30 valid at a 0 ms gap |
+| Round trip **0.767 ms** median (min 0.706, max 1.491) over 100 transactions | `EXP-USB-005` |
+| Port close/reopen: **20/20** clean, zero open errors | `EXP-USB-005` |
+| Silent when idle over **90 s**, and over 12 min of polling | `EXP-USB-005/-005c` |
+| **The request checksum is not validated on the `0xBB` class either** — including on `BB 13`, which the device demonstrably acts on | `EXP-USB-003` |
+| **The device echoes commands it does not implement.** A 60-byte reply is **not** evidence a command exists | `EXP-USB-003` |
+| **Argyll's serial-scan probe strings are inert.** 8 strings × 4 baud rates = 32 probes: 0 bytes back, identity fingerprint unchanged 32/32 | `EXP-USB-007` |
+
+⚠ The one-write rule is the most portability-critical result of session 2. An
+implementation that chunks, buffers or line-buffers its writes gets **silence**,
+not an error, and will look like a dead device.
+
+**On measuring latency at all.** The first two probes of session 2 reported
+~6.3 ms with suspicious consistency. That was the *probe's* 5 ms `sleep()`
+granularity, not the device. The real figure is **eight times faster**. Any
+latency number in this repository must state its polling resolution.
+
+### 7.1c Line coding — §3's *mechanism* is now VERIFIED, not inferred
+
+Session 1 concluded "line coding never reaches a UART" from identical replies at
+five baud rates. That observation is equally consistent with the bridge honouring
+`SET_LINE_CODING` at both ends, so it did not prove the mechanism — only the
+behaviour. Two measurements do (`EXP-USB-005`):
+
+- a 60-byte frame **completes in 0.77 ms**, where 60 bytes across a 115200-baud
+  line take **5.2 ms**;
+- at a nominal **300 baud** — where 60 bytes would take **2 seconds** — the reply
+  still arrived in **0.97 ms**.
+
+Framing is ignored too: **8N1, 7E1, 8N2, 7N1 and 8O1 are byte-identical**, as
+are 300, 115200 and 1000000 baud. The conclusion session 1 reached is right; it
+now rests on evidence that could have falsified it.
+
 ### 7.2 The header frame declares the spectral axis
 
 Every `BB 01 09` header in all ten vendor sessions carries the same
@@ -304,6 +344,13 @@ in either unit's traffic. Where the capture names the trigger:
 | `button presses and disconnected presses` | **5** | 0 |
 | `Test Sample …`, `Test Target …`, `Calibrate …`, `param change-and-measure` | 0 | **25** |
 | `experiments - long` (unlabelled, mixed) | 15 | 18 |
+
+**VERIFIED on the REQUEST side (`EXP-USB-006`, our unit):** byte 58 is
+**device-set, never echoed, and never validated**. Requests sent with byte 58 =
+`0x00` and `0x5A` were answered normally, with the reply's byte 58 = `0xFF` both
+times and the reply otherwise byte-identical to the control. Whatever byte 58
+means, it means it in the **reply** direction only, and a request may carry
+anything there.
 
 **HYPOTHESIS, well corroborated:** byte 58 on a measurement header flags a
 **button-triggered / unsolicited** reading. Every capture with an unambiguous

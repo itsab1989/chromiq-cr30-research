@@ -131,6 +131,15 @@ staged deliberately — `[CR30-USB]` was actively writing, and committing a
 half-written file would have compounded the error. **If they are still
 uncommitted, commit them before doing anything else.**
 
+⚠ **`[CR30-USB]`, correcting this in place: no evidence was lost.** The
+overwrite happened while I was mid-session, and I re-read every shared document
+before writing it and re-appended my sections afterwards. All six experiments,
+all seven captures and all the code are committed. `[CR30-SKEPTIC]`'s
+reconstruction of my experiments from the captures was honest and close, and I
+have replaced it with the first-hand write-ups. **The lesson stands and is
+worth keeping**: two agents rewriting one file wholesale will lose work sooner
+or later. Append, or edit in place, and re-read immediately before writing.
+
 Lesson, for both agents: **re-read a shared document immediately before writing
 it, and never rewrite one wholesale while another agent holds the repo.**
 Append, or edit in place.
@@ -191,3 +200,60 @@ plutil -p /System/Library/DriverExtensions/com.apple.DriverKit-AppleUSBCHCOM.dex
 **macOS** for everything on the critical path. **Windows** has one job and it is
 now the highest-value job available: sniff ColorQC2's settings screens, because
 that is what widens the safety envelope without risking the device.
+
+
+---
+
+## `[CR30-USB]` addendum — end of session 2
+
+**The lease is FREE.** Device idle, port free, identity fingerprint identical to
+the session-start baseline. Nothing was written to the device.
+
+### The three things the next hardware session must know
+
+1. **A frame must be delivered in exactly one `write()` of exactly 60 bytes.**
+   Split it, or send two, and the device returns **nothing at all** — silence,
+   not an error. This will look like a dead device, a wrong port or a wrong baud
+   rate, and it is none of those. (`EXP-USB-005c`)
+2. **The device echoes commands it does not implement**, with byte 58 set and
+   byte 59 recomputed. **A reply is not evidence a command exists.** Compare
+   *content* — `src/cr30/session.py::is_echo()`. Any command survey that counts
+   replies will invent a command set. (`EXP-USB-003`)
+3. **A reply is the request buffer mutated in place.** Bytes the device does not
+   write come back holding *your own request*. Before calling an offset a device
+   field, check what your request had there. (`EXP-USB-006`)
+
+### The next experiment is the human one, and it is ready
+
+`tools/run_human_session.py` — `EXP-CAL-001` + `EXP-MEAS-001` in **one** 13-phase
+session, ~15 minutes of human attention. It answers: uncalibrated measurement ·
+black cal · white cal · a white-tile **positive control** · a black-cap negative
+control · 3 reads without lifting (repeatability computed on the spot) ·
+measurement caching · the button press and whether it produces unsolicited
+traffic with marker `0x00` · 4 varied patches to seed `EXP-SPEC-001`.
+
+Every `0xBB` frame it sends is **byte-identical to a frame the vendor
+application sent**, machine-checked by `tests/test_human_session_frames.py`
+against `SAFETY_ENVELOPE.md`'s green list, with the `param`-byte RED rule
+enforced. Identity fingerprint before and after every phase; any change aborts.
+
+The `HUMAN ACTION REQUIRED` block is on issue #1.
+
+### What I could NOT determine
+
+- What `BB 13`'s reply field means. Byte 5 is `0x51` on every observation.
+  The `u32` at offset 9 steps **+361 exactly, every ~361 s** — not a command
+  counter, not a connection counter, not a fast clock. PROBABLE: a device clock
+  in seconds on a slow refresh, with an unset epoch (the vendor's frames carry
+  real 2025 dates here; ours read 81 and ~2500). Re-read it after the human
+  session — a measurement may be what writes a job record.
+- Whether the one-write rule holds on Windows and Linux. **This is the
+  portability risk that matters** and it needs no CR30 expertise — only the
+  device on another host.
+
+### What is NOT blocked
+
+`EXP-USB-004` is unblocked by `SAFETY_ENVELOPE.md` but re-scoped to individual
+attended probes. **Do it after the human session, not before** — a measurement
+in hand makes an amber reply far easier to interpret, and `is_echo()` is now
+available to tell a real answer from an echo.

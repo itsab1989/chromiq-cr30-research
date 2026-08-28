@@ -281,3 +281,305 @@ It is re-scoped from "survey the command space" to "a sequence of individually
 logged single probes, one per lease, attended". A sweep in any form is
 forbidden. `EXP-USB-005` must run first, because a latency baseline is the only
 cheap way to notice a write.
+
+---
+
+# Session 2 — `[CR30-USB]`, 2026-08-28, macOS 15.7.9 (24G830) arm64
+
+Lease held by `[CR30-USB]` throughout. `/dev/cu.usbserial-10`. ColorQC2 not
+running (`ps` verified). No firmware or calibration writes were sent.
+
+---
+
+## EXP-USB-003 — is the checksum enforced on the `0xBB` command class? · ✅ DONE
+
+**Hypothesis.** `EXP-USB-002` proved only that `AA 0A 00` ignores the request
+checksum. A side-effecting or state-bearing `0xBB` command might validate it.
+
+**Choosing the least side-effecting `0xBB` command.** The only `0xBB` commands
+with any provenance are the three that itohio/color-science's
+`CR30Device.handshake()` issues on **every connect**: `BB 17 00 00`
+("initialize"), `BB 13 00 00 + b"Check"` ("check"), and `BB 28 00 <idx>`
+("query parameters"). A command the vendor's own software sends unconditionally
+before doing anything cannot leave the device in a state the vendor software
+could not. `BB 28` was chosen first because it is named as a *query* and takes
+an index. `BB 10`/`BB 11` (calibration) were excluded: they write.
+
+**Setup.** `tools/probe_bb_class.py`, then `tools/probe_bb_checksum.py`.
+Every step bracketed by an `AA 0A 00 00` re-baseline.
+
+**Procedure.**
+1. Baseline `AA 0A 00 00`; abort if it fails.
+2. `BB 28 00 xx` for xx = 00, 01, 02, 03, FF.
+3. `BB 13`, `BB 17`, each with a re-baseline.
+4. Vary **only byte 59** on `BB 28 00 00`: correct (`0xE2`), `0xE1`, `0xE3`,
+   `0x00`, `0xFF`, `0x42`.
+5. Vary **only byte 59** on `BB 13 00 00 + b"Check"`: correct (`0xAB`), `0xAA`,
+   `0x00`, `0xFF`, `0x42`.
+
+**Expected.** If the device validates, wrong checksums yield silence or an error.
+
+**Actual.**
+- Every `0xBB` command answered with a valid 60-byte frame. **First `0xBB`
+  traffic this project has ever captured.**
+- `BB 28` and `BB 17` came back as an **exact copy of the request**, with only
+  byte 58 forced to `0xFF` and byte 59 recomputed. A request carrying `A5 5A`
+  at frame offsets 53–54 got those same bytes back: **the device wrote nothing.**
+- `BB 13` is **different**: it overwrote frame offsets **5–10** with
+  `51 00 00 00 3C 04`. It is a real, implemented command.
+- All six `BB 28` checksum values and all five `BB 13` checksum values produced
+  a **byte-identical reply body** (bytes 0–57). The only byte that moved was 59,
+  which the device recomputes.
+- Opening and closing identity baselines were byte-identical.
+
+**Evidence.** `captures/public/EXP-USB-003-stage1-bb-class.json`,
+`captures/public/EXP-USB-003-stage2-bb-checksum.json`.
+
+**Conclusions.**
+1. **The device does not validate request checksums on the `0xBB` class
+   either — VERIFIED**, and now on a command it demonstrably *acts on*
+   (`BB 13`), not only on an information query. `EXP-USB-002`'s deliberate
+   caveat is discharged.
+2. **The CR30 echoes commands it does not implement — VERIFIED.** This is the
+   most operationally important result of the session. *A 60-byte reply is not
+   evidence that a command exists.* Any command-space survey that counts replies
+   will invent a command set. `src/cr30/session.py::is_echo()` is the
+   discriminator; `Session.transact_checked()` refuses to return an echo as a
+   result.
+3. itohio's `BB 17` "initialize device" and `BB 28` "query parameters" are
+   **not implemented** on firmware `V11.3.` / `V10.0.0.0` / build `0.0.20231219`
+   — **PROBABLE**, not VERIFIED: they might be valid only in a state we have not
+   reached. `PRIORART-001` shows the vendor sends both and gets nothing back
+   either, which corroborates it.
+4. `BB 13` is a real command — **VERIFIED**. See EXP-USB-005b for what its
+   reply field is, and is not.
+
+**Confidence.** VERIFIED for 1, 2, 4. PROBABLE for 3.
+
+**Next.** EXP-USB-006 (what the device parses), EXP-USB-005 (timing).
+
+---
+
+## EXP-USB-006 — how much of a *request* does the device parse? · ✅ DONE
+
+**Hypothesis.** `PROTOCOL.md` §6 Q1 (is the payload 4–55 or 4–57?) and Q3 (is
+byte 58 a constant marker or something else?) can both be attacked without
+sending a new command, by varying request bytes and watching the reply.
+
+**Setup.** `tools/probe_request_fields.py`. One byte-group changes per case;
+all other 59 bytes byte-identical. The script asserts each mutation landed
+before any conclusion is drawn.
+
+**Procedure.** On `AA 0A 00 00` (device-info read, zero risk) and on
+`BB 28 00 00` (framing byte only): control · payload 4–57 = a ramp ·
+bytes 56,57 = `A5 5A` only · marker byte 58 = `0x00` · marker = `0x5A` ·
+control again.
+
+**Expected.** If bytes 56–57 are device payload they will be overwritten. If
+byte 58 is a required constant, changing it will break the request.
+
+**Actual.**
+- **The reply is the request buffer mutated in place.** With a ramp in the
+  payload, the reply came back with the ramp still present at frame offsets
+  **4, 55, 56 and 57**, and device data at 5–54.
+- The `A5 5A` probe is decisive on its own: that reply differed from the control
+  reply at **exactly offsets 56, 57 and 59** — our two bytes, and the checksum.
+- Request marker `0x00` and `0x5A` both produced a **normal reply whose marker
+  was `0xFF`**, byte-identical to the control reply.
+
+**Evidence.** `captures/public/EXP-USB-006-request-fields-AB.json`.
+
+**Conclusions.**
+1. **§6 Q1 is answered — VERIFIED.** For `AA 0A` the device writes exactly
+   offsets **5–54** (50 bytes). Offsets 4, 55, 56, 57 in a reply are *the
+   caller's own bytes*. Session 1 saw `0x00` at 56–57 in every frame and could
+   not tell what they were; they were zero **because its requests were zero
+   there**. Neither "payload = 4–55" nor "payload = 4–57" describes a response.
+   **A reply's unwritten bytes cannot be read as device data** — the single most
+   likely source of a false field discovery on this instrument.
+2. **§6 Q3 is answered — VERIFIED.** Byte 58 is **device-set, not echoed**: the
+   device forces `0xFF` whatever the request contained. The request's byte 58 is
+   **not validated**.
+3. Together with `[CR30-SKEPTIC]`'s corpus work (`PROTOCOL.md` §7.4), byte 58 is
+   a **device-written flag**: `0xFF` on everything observed here, `0x00` on the
+   `BB 01 09` measurement header in vendor traffic.
+
+**Confidence.** VERIFIED, this unit, `AA 0A` and `BB 28` classes.
+
+**Next.** Extend to a measurement chunk when EXP-MEAS-001 runs.
+
+---
+
+## EXP-USB-005 — timing and transport characterisation · ✅ DONE
+
+**Hypothesis.** The 300 ms post-open settle delay, the inter-command delays and
+the "baud does not matter" *mechanism* are all untested assumptions. Measure them.
+
+**Setup.** `tools/probe_timing.py`, `tools/probe_bb13_field.py`,
+`tools/probe_write_granularity.py`. Read-only commands only (`AA 0A`, `BB 13`).
+
+**Actual.**
+
+| Question | Measurement | Result |
+|---|---|---|
+| Response latency | 50 round trips × 2 commands | first byte **0.735 ms** median (min 0.603, max 0.932); **complete frame 0.767 ms** median, max 1.491. 100/100 replies |
+| Settle delay after open | 6 delays × 10 opens | **0 ms → 10/10 valid.** Identical at 5/25/50/100/300 ms |
+| Inter-command delay | 4 gaps × 30 commands | **0 ms → 30/30 valid.** No delay needed |
+| Port close/reopen | 20 cycles | **20/20**, zero open errors |
+| Unsolicited traffic | 90 s idle, then 12 min polled | **0 bytes**, always |
+| Line coding | 8N1 / 7E1 / 8N2 / 7N1 / 8O1 | **all byte-identical** to 8N1 |
+| Baud | 300 / 115200 / 1000000 | **all byte-identical** |
+| Pipelining | 2 and 3 frames in one write | **0 bytes back.** Recovers on the next single-frame write, no reopen |
+| Write granularity | 60 B split 30+30, 59+1, 1+59, 20+20+20 | **0 bytes back, 4/4.** One write of 60 B always replies |
+
+**Evidence.** `captures/public/EXP-USB-005-timing.json`,
+`EXP-USB-005b-bb13-field.json`, `EXP-USB-005c-write-granularity-and-drift.json`.
+
+**Conclusions.**
+1. **The 300 ms settle delay is superstition — VERIFIED.** Remove it.
+2. **No inter-command delay is needed — VERIFIED.**
+3. **A frame must be written in exactly ONE `write()` call — VERIFIED**, five
+   ways. This is the most portability-critical rule found this session: any
+   implementation that chunks, buffers or line-buffers its writes gets
+   **silence**, not an error. Encoded in `src/cr30/transport.py`.
+4. **Never write more than one frame per call — VERIFIED.**
+5. **`PROTOCOL.md` §3's stated *mechanism* is now VERIFIED, by a far stronger
+   argument than session 1 had.** Session 1 inferred "line coding never reaches
+   a UART" from identical replies at five baud rates — an observation equally
+   consistent with the bridge honouring `SET_LINE_CODING` at both ends. Two new
+   measurements separate them: a 60-byte frame **completes in 0.77 ms**, where
+   60 bytes across a 115200-baud line take **5.2 ms**; and at a nominal
+   **300 baud** — where 60 bytes would take 2 seconds — the reply still arrived
+   in **0.97 ms**. No UART is in the path. Framing is ignored too (7E1, 8N2,
+   7N1, 8O1 identical).
+6. The device is silent when idle over 90 s and over 12 minutes of polling —
+   **VERIFIED**. Session 1's claim was scoped to 1 s.
+
+**Confidence.** VERIFIED throughout, this unit, USB transport, macOS.
+
+**Note on a broken probe, recorded deliberately.** The first two probes of this
+session reported ~6.3 ms latency with suspicious consistency. That was the
+*probe's* 5 ms `time.sleep()` polling granularity, not the device. The real
+figure is 0.77 ms — **eight times faster**. Had it not been re-measured with a
+0.5 ms poll, "the CR30 answers in ~6 ms" would have entered `TRANSPORT_USB.md`
+as a fact. Any latency figure must state its polling resolution.
+
+---
+
+## EXP-USB-005b/c — what moves `BB 13`'s reply field? · ✅ DONE (partly NOT DETERMINED)
+
+**Hypothesis.** `BB 13` writes `51 00 00 00 <u16 LE>` at frame offsets 5–10.
+The u16 was seen at 1084, then 1445. Something moves it.
+
+**Procedure.** 20 back-to-back reads · 50 intervening `AA 0A` commands · a port
+close/reopen · a 30 s idle · a 90 s idle · then a sample every 30 s for 12 min.
+
+**Actual.** Invariant under all of: 20 repeats, 50 intervening commands, a port
+reopen, 30 s and 90 s idle. Over the 12-minute sampler it **stepped exactly
++361 twice**, once between t=275.9 s and t=306.5 s and once between t=642.9 s
+and t=673.5 s — a step of 361 with an interval of 367 ± 30 s. Across the whole
+session it was observed at 1084, 1445, 1806, 2167, 2528: **five values, four
+steps, every one exactly +361.**
+
+**Evidence.** `captures/public/EXP-USB-005b-bb13-field.json`,
+`EXP-USB-005c-write-granularity-and-drift.json`.
+
+**Conclusions.**
+1. **Not a command counter, not a connection counter, not a fast clock —
+   DISPROVEN** for all three.
+2. **PROBABLE: it is a device clock in seconds, refreshed into the job record on
+   a ~361 s cycle** — the step size and the update interval are equal within the
+   sampling resolution.
+3. **CORROBORATED by the vendor corpus** (`[CR30-SKEPTIC]`, `PRIORART-001`):
+   `BB 13` is a **job record** — two `u32` LE **Unix timestamps** at frame
+   offsets 5 and 9, and an ASCII label at offset 13. Vendor frames carry real
+   October-2025 dates. **On this unit they read 81 and ~2500 — i.e. seconds
+   since 1970. The clock has never been set.**
+4. **itohio puts `b"Check"` at frame offset 4. The vendor puts it at offset 13.**
+   The prior art has the label in the wrong field.
+5. What byte 5 (`0x51` = 81, constant everywhere) means is **NOT DETERMINED**.
+
+**Next.** Re-read `BB 13` before and after the human session — a measurement may
+be what writes a job record. Built into `tools/run_human_session.py`.
+
+---
+
+## EXP-CAL-001 — calibration, and EXP-MEAS-001 — measurement · ⏸ READY, NEEDS THE HUMAN
+
+Both are driven by **one script, one session**: `tools/run_human_session.py`.
+Designed so a single period of human attention answers every hardware question
+that is currently open. The human is asked only to move the instrument and press
+Enter; every comparison, decode and judgement is made by the script
+(`CLAUDE.md` §17).
+
+**Safety.** Every `0xBB` frame the script sends is **byte-identical to a frame
+the vendor application actually sent** (`PRIORART-001`), enforced by
+`tests/test_human_session_frames.py`, which also asserts every triple is on
+`SAFETY_ENVELOPE.md`'s green list and every `param` byte is zero (RED rule 2).
+`BB 10`/`BB 11` **write calibration storage**; `SAFETY_ENVELOPE.md` §2a permits
+them only here, with the tiles present and a human watching. Between every phase
+the four identity sub-commands are re-read as a 240-byte fingerprint and **any
+change aborts the run**.
+
+**Preconditions.** CR30 on USB · ColorQC2 not running · black cap and white tile
+to hand · a printed chart or colour patches · the lease held.
+
+**Procedure (13 phases, ~15 minutes of human time).**
+
+| # | Phase | Question it answers |
+|---|---|---|
+| 0 | identity fingerprint | baseline; repeated after every phase |
+| 1 | `BB 13` job record, before | does a measurement write a job record? |
+| 2 | measure a patch, **before any calibration** | is calibration a precondition, and what does an uncalibrated read return? |
+| 3 | `BB 10 00 00` black calibration | command, reply, status byte, timing |
+| 4 | `BB 11 00 00` white calibration | command, reply, status byte, timing |
+| 5 | measure the **white tile** | **positive control** — a correct decode must read near-flat and near-maximum |
+| 6 | measure the **black cap** | **negative control** — must read near-minimum |
+| 7 | measure a colour patch **3× without lifting** | repeatability; per-band SD computed on the spot |
+| 8 | re-fetch chunks **without re-triggering** | is a measurement cached? |
+| 9 | press the instrument's own **button**, 15 s passive listen | is there unsolicited traffic, and does the header carry marker `0x00`? (tests `PROTOCOL.md` §7.4) |
+| 10 | fetch chunks after the button press | is a button reading fetched the same way? |
+| 11 | 4 further, varied patches | seed corpus for `EXP-SPEC-001` (are the 31 bands independent?) |
+| 12 | `BB 13` job record, after · final fingerprint | did anything move? |
+
+**Expected.** A `BB 01 09` header with `28 1f 0a` at offsets 4–6; three chunks
+carrying 12 `float32` LE each from offset 6; the white tile reading near-flat
+and high; the black cap reading near-zero.
+
+**What a failure teaches.** If the white tile does **not** read flat and high,
+the decode is wrong, not the instrument — that is exactly why the positive
+control is in the script rather than trusting the first plausible float run.
+
+**Actual / evidence / conclusion.** — pending the human.
+
+---
+
+## EXP-USB-007 — ChromIQ's Argyll serial scan vs. the CR30 · ✅ DONE
+
+**Hypothesis (`EXP-USB-005c` predicted the answer before the test ran).** Every
+Argyll probe string is 1–10 bytes; the CR30 answers nothing to any write that is
+not exactly 60 bytes in one call. **The CR30 will ignore Argyll's probes entirely.**
+
+**Setup.** `tools/probe_argyll_scan.py`. The eight probe strings taken verbatim
+from ArgyllCMS 3.5.0 `spectro/inst.c::fast_ser_dev_type` — `;`, `D024\r\n`,
+`X`, `#ZQS00\r`, `#0ZQS008E\r`, `#0ZQS018F\r`, `P0\r`, `*idn?\r` — at the four
+baud rates Argyll actually tries: 9600, 921600, 115200, 38400. **32 probes.**
+A 240-byte identity fingerprint before and after **every single probe**.
+
+**Actual.** **32/32: zero bytes returned, fingerprint byte-identical every
+time.** Final fingerprint identical to the opening baseline.
+
+**Evidence.** `captures/public/EXP-USB-007-argyll-serial-scan.json`.
+
+**Conclusion — VERIFIED.** A CR30 sharing a machine with ChromIQ is **not**
+disturbed by Argyll's serial device scan. `ChromIQ/core/argyll_runner.py` keeping
+`/dev/cu.usbserial-*` in the scan is **not a bug for this instrument**, and the
+integration does **not** need `ARGYLL_EXCLUDE_SERIAL_SCAN` for the CR30's node.
+The hazard `[CR30-SKEPTIC]` filed is real in principle and does not fire here,
+for the reason `EXP-USB-005c` gives: the device's frame parser will not act on
+anything that is not a whole 60-byte frame in a single write.
+
+**Scope, honestly.** This proves the CR30 ignores the probes. It does **not**
+prove the reverse direction: a scan that *opens* the port while a ChromIQ
+measurement is in flight would still take the port away. That is a locking
+question, not a protocol one, and belongs in `INTEGRATION.md`.

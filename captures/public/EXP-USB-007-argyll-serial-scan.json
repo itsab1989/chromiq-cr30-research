@@ -1,0 +1,305 @@
+{
+  "experiment": "EXP-USB-007",
+  "utc": "2026-08-28T13:12:10.110795+00:00",
+  "port": "/dev/cu.usbserial-10",
+  "platform": "macOS 15.7.9 (24G830) arm64",
+  "source": "ArgyllCMS 3.5.0 spectro/inst.c::fast_ser_dev_type",
+  "prediction": "no effect -- probes are not 60-byte single writes (EXP-USB-005c)",
+  "probes": [
+    {
+      "baud": 9600,
+      "probe": ";",
+      "who": "Spectrolino / generic",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "D024\\r\\n",
+      "who": "Spectrolino",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "X",
+      "who": "Lumagen menu-off",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "#ZQS00\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 7,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "#0ZQS008E\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "#0ZQS018F\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "P0\\r",
+      "who": "Klein K10",
+      "bytes_written": 3,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 9600,
+      "probe": "*idn?\\r",
+      "who": "SCPI identify",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": ";",
+      "who": "Spectrolino / generic",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "D024\\r\\n",
+      "who": "Spectrolino",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "X",
+      "who": "Lumagen menu-off",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "#ZQS00\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 7,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "#0ZQS008E\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "#0ZQS018F\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "P0\\r",
+      "who": "Klein K10",
+      "bytes_written": 3,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 921600,
+      "probe": "*idn?\\r",
+      "who": "SCPI identify",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": ";",
+      "who": "Spectrolino / generic",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "D024\\r\\n",
+      "who": "Spectrolino",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "X",
+      "who": "Lumagen menu-off",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "#ZQS00\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 7,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "#0ZQS008E\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "#0ZQS018F\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "P0\\r",
+      "who": "Klein K10",
+      "bytes_written": 3,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 115200,
+      "probe": "*idn?\\r",
+      "who": "SCPI identify",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": ";",
+      "who": "Spectrolino / generic",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "D024\\r\\n",
+      "who": "Spectrolino",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "X",
+      "who": "Lumagen menu-off",
+      "bytes_written": 1,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "#ZQS00\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 7,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "#0ZQS008E\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "#0ZQS018F\\r",
+      "who": "Lumagen Radiance",
+      "bytes_written": 10,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "P0\\r",
+      "who": "Klein K10",
+      "bytes_written": 3,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    },
+    {
+      "baud": 38400,
+      "probe": "*idn?\\r",
+      "who": "SCPI identify",
+      "bytes_written": 6,
+      "bytes_back": 0,
+      "back": "",
+      "fingerprint_unchanged": true
+    }
+  ],
+  "fingerprint_bytes": 240,
+  "final_fingerprint_unchanged": true,
+  "probes_that_produced_output": 0,
+  "probes_that_changed_fingerprint": 0,
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

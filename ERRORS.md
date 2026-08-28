@@ -73,3 +73,58 @@ interrupted mid-chunk.
 
 Nothing destructive: no firmware writes, no blind calibration-storage writes,
 no high-volume garbage traffic (`CLAUDE.md` §11).
+
+
+---
+
+## Session 2 additions — `[CR30-USB]`, 2026-08-28
+
+### VERIFIED — the checksum is not validated on `0xBB` either
+
+`EXP-USB-002`'s caveat ("verified for one command; a side-effecting command
+might be validated") is **discharged**. `EXP-USB-003` varied only byte 59 across
+correct / ±1 / `0x00` / `0xFF` / `0x42` on `BB 28` and on `BB 13` — the latter a
+command the device demonstrably acts on — and every case returned a
+**byte-identical reply body**. There is no transmit-side error detection
+anywhere in this protocol.
+
+### VERIFIED — the device ECHOES commands it does not implement
+
+The worst failure mode found this session, because it does not look like a
+failure. `BB 28 00 xx` and `BB 17 00 00` return an exact copy of the request
+with byte 58 set and byte 59 recomputed. **The device wrote nothing**: a request
+carrying `A5 5A` at offsets 53–54 got those bytes back.
+
+Consequences, all of them non-obvious:
+
+- **A 60-byte reply is not evidence a command exists.** Any survey that counts
+  replies invents a command set. This is why `EXP-USB-004` must compare
+  *content*, not reply presence.
+- **A caller that reads a field out of an echo reads its own request back.**
+  If the request was all-zero, the "response" is a plausible-looking block of
+  zeros — a status of `0x00`, a count of 0, an empty parameter list.
+- itohio's "query parameters" (`BB 28`) and "initialize device" (`BB 17`) are
+  echoes on this firmware. They are in the published handshake because they
+  reply, not because they work.
+
+`src/cr30/session.py::is_echo()` is the discriminator and
+`Session.transact_checked()` raises `EchoedCommandError` rather than returning
+an echo. **Any new command decoder must call it first.**
+
+### VERIFIED — silence is the failure mode for a malformed write
+
+Not an error, not a NAK: **silence**. A frame split across two `write()` calls,
+or two frames in one call, produce **zero bytes**. An implementation that
+retries on timeout will loop; one that reports "wrong baud rate" will send the
+user chasing a setting that does not exist (`PROTOCOL.md` §3). The transport
+must name the real cause: *the frame did not reach the device as one 60-byte
+write*.
+
+Recovery is clean — the very next single-frame write is answered normally, with
+no port reopen (`EXP-USB-005b`).
+
+### VERIFIED — a reply's unwritten bytes are the caller's own
+
+`EXP-USB-006`. A reply is the request buffer mutated in place. Before calling
+any offset a device field, **check what the request had there**. A decoder
+tested only with all-zero requests cannot tell a device zero from its own.

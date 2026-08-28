@@ -1,0 +1,180 @@
+{
+  "experiment": "EXP-USB-005b",
+  "utc": "2026-08-28T12:55:53.432729+00:00",
+  "port": "/dev/cu.usbserial-10",
+  "platform": "macOS 15.7.9 (24G830) arm64",
+  "parts": {
+    "repeat_bb13": [
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      [
+        81,
+        1445,
+        "51000000a505"
+      ]
+    ],
+    "after_50_ident": {
+      "before": [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      "after": [
+        81,
+        1445,
+        "51000000a505"
+      ]
+    },
+    "across_reopen": {
+      "before": [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      "after": [
+        81,
+        1445,
+        "51000000a505"
+      ]
+    },
+    "idle_30s": {
+      "before": [
+        81,
+        1445,
+        "51000000a505"
+      ],
+      "after": [
+        81,
+        1445,
+        "51000000a505"
+      ]
+    },
+    "pipelining": {
+      "pipelined_reply_bytes": 0,
+      "recovery": [
+        {
+          "attempt": 1,
+          "rx_len": 60,
+          "valid": true,
+          "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09"
+        }
+      ],
+      "pipelined_rx": ""
+    },
+    "write_size_tolerance": [
+      {
+        "frames_in_one_write": 1,
+        "bytes_back": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09"
+      },
+      {
+        "frames_in_one_write": 2,
+        "bytes_back": 0,
+        "rx": ""
+      },
+      {
+        "frames_in_one_write": 3,
+        "bytes_back": 0,
+        "rx": ""
+      }
+    ]
+  },
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [
+    "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09"
+  ],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

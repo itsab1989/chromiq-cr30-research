@@ -1,0 +1,126 @@
+{
+  "experiment": "EXP-USB-006",
+  "utc": "2026-08-28T12:45:46.246569+00:00",
+  "port": "/dev/cu.usbserial-10",
+  "platform": "macOS 15.7.9 (24G830) arm64",
+  "stage": "AB",
+  "batteries": [
+    {
+      "title": "A: AA 0A 00 00 (device-info READ, zero risk)",
+      "cases": [
+        {
+          "label": "control  (zero payload, marker 0xFF)",
+          "tx": "aa0a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb3",
+          "rx_len": 60,
+          "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+          "first_byte_s": 0.00629358300648164,
+          "tx_differs_from_control": null,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "payload 4..57 = ramp",
+          "tx": "aa0a000001080f161d242b323940474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d74ff0a",
+          "rx_len": 60,
+          "rx": "aa0a0000015600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000666d74ff51",
+          "first_byte_s": 0.005649917002301663,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": false,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "bytes 56,57 = A5 5A only",
+          "tx": "aa0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a55affb2",
+          "rx_len": 60,
+          "rx": "aa0a000000560019035245444143544544585800000000000000000000000000000000000000004352333000000000000000000000000000a55aff08",
+          "first_byte_s": 0.006334416990284808,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": false,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "marker byte58 = 0x00",
+          "tx": "aa0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b4",
+          "rx_len": 60,
+          "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+          "first_byte_s": 0.006267916003707796,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "marker byte58 = 0x5A",
+          "tx": "aa0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005a0e",
+          "rx_len": 60,
+          "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+          "first_byte_s": 0.006292834004852921,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "control again (regression)",
+          "tx": "aa0a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb3",
+          "rx_len": 60,
+          "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+          "first_byte_s": 0.006273708000662737,
+          "tx_differs_from_control": false,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        }
+      ]
+    },
+    {
+      "title": "B: BB 28 00 00 (framing byte only)",
+      "cases": [
+        {
+          "label": "control  (zero payload, marker 0xFF)",
+          "tx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "rx_len": 60,
+          "rx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "first_byte_s": 0.006390458001988009,
+          "tx_differs_from_control": null,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": true
+        },
+        {
+          "label": "marker byte58 = 0x00",
+          "tx": "bb28000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e3",
+          "rx_len": 60,
+          "rx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "first_byte_s": 0.006328749994281679,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "marker byte58 = 0x5A",
+          "tx": "bb2800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005a3d",
+          "rx_len": 60,
+          "rx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "first_byte_s": 0.006277916007093154,
+          "tx_differs_from_control": true,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": false
+        },
+        {
+          "label": "control again (regression)",
+          "tx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "rx_len": 60,
+          "rx": "bb280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffe2",
+          "first_byte_s": 0.005766415997641161,
+          "tx_differs_from_control": false,
+          "rx_equals_control_rx": true,
+          "rx_equals_tx": true
+        }
+      ]
+    }
+  ],
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [
+    "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+    "aa0a000000560019035245444143544544585800000000000000000000000000000000000000004352333000000000000000000000000000a55aff08",
+    "aa0a0000015600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000666d74ff51"
+  ],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

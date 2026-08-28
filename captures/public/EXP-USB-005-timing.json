@@ -1,0 +1,219 @@
+{
+  "experiment": "EXP-USB-005",
+  "utc": "2026-08-28T12:52:18.031170+00:00",
+  "port": "/dev/cu.usbserial-10",
+  "platform": "macOS 15.7.9 (24G830) arm64",
+  "results": {
+    "latency": {
+      "AA 0A 00 00": {
+        "replies": 50,
+        "of": 50,
+        "first_byte": {
+          "n": 50,
+          "min_ms": 0.603,
+          "median_ms": 0.735,
+          "mean_ms": 0.745,
+          "max_ms": 0.932,
+          "stdev_ms": 0.053
+        },
+        "last_byte": {
+          "n": 50,
+          "min_ms": 0.706,
+          "median_ms": 0.767,
+          "mean_ms": 0.799,
+          "max_ms": 1.491,
+          "stdev_ms": 0.133
+        }
+      },
+      "BB 13 Check": {
+        "replies": 50,
+        "of": 50,
+        "first_byte": {
+          "n": 50,
+          "min_ms": 0.678,
+          "median_ms": 0.715,
+          "mean_ms": 0.733,
+          "max_ms": 0.924,
+          "stdev_ms": 0.049
+        },
+        "last_byte": {
+          "n": 50,
+          "min_ms": 0.695,
+          "median_ms": 0.737,
+          "mean_ms": 0.757,
+          "max_ms": 0.967,
+          "stdev_ms": 0.055
+        }
+      }
+    },
+    "settle_delay": {
+      "0ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.683,
+          "median_ms": 0.735,
+          "mean_ms": 0.746,
+          "max_ms": 0.818,
+          "stdev_ms": 0.044
+        }
+      },
+      "5ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.69,
+          "median_ms": 0.72,
+          "mean_ms": 0.734,
+          "max_ms": 0.819,
+          "stdev_ms": 0.044
+        }
+      },
+      "25ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.701,
+          "median_ms": 0.758,
+          "mean_ms": 0.759,
+          "max_ms": 0.833,
+          "stdev_ms": 0.042
+        }
+      },
+      "50ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.736,
+          "median_ms": 0.837,
+          "mean_ms": 0.831,
+          "max_ms": 0.918,
+          "stdev_ms": 0.052
+        }
+      },
+      "100ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.706,
+          "median_ms": 0.751,
+          "mean_ms": 0.82,
+          "max_ms": 1.389,
+          "stdev_ms": 0.196
+        }
+      },
+      "300ms": {
+        "ok": 10,
+        "of": 10,
+        "first_byte": {
+          "n": 10,
+          "min_ms": 0.696,
+          "median_ms": 0.875,
+          "mean_ms": 0.89,
+          "max_ms": 1.367,
+          "stdev_ms": 0.172
+        }
+      }
+    },
+    "inter_command_delay": {
+      "0ms": {
+        "ok": 30,
+        "of": 30
+      },
+      "1ms": {
+        "ok": 30,
+        "of": 30
+      },
+      "5ms": {
+        "ok": 30,
+        "of": 30
+      },
+      "20ms": {
+        "ok": 30,
+        "of": 30
+      }
+    },
+    "port_reopen": {
+      "ok": 20,
+      "of": 20,
+      "errors": []
+    },
+    "line_coding": {
+      "8N1 (reference)": {
+        "baud": 115200,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 0.867
+      },
+      "7E1": {
+        "baud": 115200,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 1.436
+      },
+      "8N2": {
+        "baud": 115200,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 0.986
+      },
+      "7N1": {
+        "baud": 115200,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 1.431
+      },
+      "8O1": {
+        "baud": 115200,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 0.761
+      },
+      "300 baud 8N1": {
+        "baud": 300,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 0.975
+      },
+      "1000000 baud 8N1": {
+        "baud": 1000000,
+        "rx_len": 60,
+        "rx": "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09",
+        "identical_to_8N1": true,
+        "last_byte_ms": 1.432
+      }
+    },
+    "pipelining": {
+      "bytes_back": 0,
+      "rx": "",
+      "elapsed_ms": 2000.11
+    },
+    "idle": {
+      "window_s": 90.0,
+      "unsolicited_bytes": 0,
+      "unsolicited": "",
+      "arrival_times_s": [],
+      "bb13_before": "bb1300004351000000a5050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff0b",
+      "bb13_after": "bb1300004351000000a5050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff0b",
+      "bb13_changed": false,
+      "bb13_before_5_10": "51000000a505",
+      "bb13_after_5_10": "51000000a505"
+    }
+  },
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [
+    "aa0a0000005600190352454441435445445858000000000000000000000000000000000000000043523330000000000000000000000000000000ff09"
+  ],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

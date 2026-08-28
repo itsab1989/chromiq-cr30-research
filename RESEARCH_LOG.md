@@ -120,3 +120,82 @@ then `EXP-USB-006`/`007` (the two downgraded findings, cheap), then
 `EXP-CAL-001`/`EXP-MEAS-001` on our unit. Highest value for lowest risk:
 **more vendor sniffing on Windows**, which widens the envelope without sending
 a byte.
+
+---
+
+## Session 2 — `[CR30-USB]` · 2026-08-28 · macOS 15.7.9 arm64
+
+Lease held throughout. Six experiments, ~380 device transactions, no firmware or
+calibration writes. Everything below has a capture in `captures/public/`.
+
+**Answered the session's brief question.** `EXP-USB-003`: the checksum is **not**
+enforced on the `0xBB` class either — proved on `BB 13`, a command the device
+demonstrably acts on, not merely on an information query. `EXP-USB-002`'s
+deliberate caveat is discharged.
+
+**Found the trap that would have wrecked command discovery.** The CR30 **echoes
+commands it does not implement**, with byte 58 set and byte 59 recomputed, so an
+unimplemented command is indistinguishable from a working one *if you only count
+replies*. `BB 28` ("query parameters") and `BB 17` ("initialize") — both in
+itohio's published handshake — are echoes on this firmware. The discriminator is
+whether the device wrote anything: a request with `A5 5A` planted at offsets
+53–54 got those bytes back untouched.
+
+**Retired both open structural questions in `PROTOCOL.md` §6.** A reply is the
+request buffer **mutated in place**. For `AA 0A` the device writes offsets 5–54
+and leaves 4, 55, 56, 57 holding the caller's own bytes — which is why session 1
+read zeros at 56–57 and could not interpret them. Byte 58 is device-set, never
+echoed, and never validated on the request side.
+
+**Challenged the baseline, then strengthened it.** My opening assessment said
+three of the nine session-1 findings were overstated. Two of the three now
+resolve *in the baseline's favour*, on better evidence:
+
+- The published checksum's `0xBB` branch is arithmetically identical to ours on
+  any `0xFF`-marker frame — every frame this project's own hardware emits — so
+  "DISPROVEN" was doing work the evidence had not done. `[CR30-SKEPTIC]`'s
+  vendor corpus then supplied the discriminating case: the `BB 01 09`
+  measurement header carries marker `0x00`, and there ours holds **20/20**
+  while itohio's holds **0/20**. Across 637 vendor frames from a second unit:
+  **637/637 vs 617/637**. The rule is right; it is now right *for a reason that
+  could have come out the other way*.
+- "Baud does not matter" was verified as behaviour and asserted as mechanism.
+  The mechanism is now measured: a 60-byte reply completes in **0.77 ms**, where
+  115200 baud needs 5.2 ms and 300 baud would need 2 seconds. No UART is in the
+  path.
+
+The third — that "60-byte frames, marker `0xFF`" rested on **4 distinct frames**
+presented as 57 tests — stands, and `[CR30-SKEPTIC]` independently found that
+two of those four carry a checksum written by `tools/redact.py` rather than by
+the device.
+
+**Measured what was superstition.** The 300 ms post-open settle delay: **not
+needed** (10/10 at 0 ms). Inter-command delay: **not needed** (30/30 at 0 ms).
+Round trip: **0.767 ms** median over 100 transactions.
+
+**Found the portability rule that matters.** A frame must be delivered in
+**exactly one `write()`**. Split 30+30, 59+1, 1+59 or 20+20+20 the device
+returns **nothing at all** — silence, not an error. Two frames in one write:
+also nothing. This is the failure that will look like a dead device on another
+OS, and it is now enforced in `src/cr30/transport.py`.
+
+**Closed a hazard against ChromIQ.** `EXP-USB-007`: all eight ArgyllCMS serial
+device-scan probe strings, at all four baud rates Argyll tries — 32 probes — are
+**inert**. Zero bytes back, identity fingerprint unchanged 32/32. ChromIQ does
+not need `ARGYLL_EXCLUDE_SERIAL_SCAN` for the CR30's node. The prediction came
+from the one-write rule before the test was run.
+
+**Corrected by `[CR30-SKEPTIC]`, and they were right.** `frame.py` said the
+device forces byte 58 to `0xFF` "on every frame it emits". True of the four
+classes `EXP-USB-006` could reach; false for `BB 01 09`, the one class it could
+not — and the one that carries the measurement. Docstring amended.
+
+**Built the transport boundary.** `src/cr30/transport.py` (ABC + serial +
+**replay**), `src/cr30/discovery.py` (the only OS-aware module),
+`src/cr30/session.py` (commands, echo guard). `import cr30` does not import
+pyserial, enforced by a test. **376 tests pass with no hardware attached.**
+
+**Prepared, did not run:** `EXP-CAL-001` + `EXP-MEAS-001` as a single
+13-phase human session (`tools/run_human_session.py`), every `0xBB` frame
+byte-identical to vendor traffic and machine-checked against
+`SAFETY_ENVELOPE.md`'s green list.

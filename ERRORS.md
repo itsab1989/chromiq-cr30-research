@@ -196,8 +196,18 @@ any DTR/RTS combination cleared it (all four states tested, 0 bytes each).
    throughout, which is both the diagnostic that cracked this and a genuine
    robustness option: a backend that can fall back to the other transport is
    strictly better placed than one that cannot.
-4. A power cycle of the instrument is the suspected cure; **not yet confirmed**.
+4. **A power cycle of the instrument clears it — CONFIRMED.** Long-press to
+   power off, press to power on, USB cable left connected: the identity query
+   answered 60 bytes with the model string immediately afterwards. A cable
+   replug does NOT clear it, because it resets the host end and not the
+   instrument's firmware state.
 
-**Not established:** what puts it in this state (repeated opens, a specific
-command, or a BLE session overlapping a USB one), and whether a power cycle
-reliably clears it.
+**Not established:** what puts it in this state — repeated open/close cycles, a
+specific command, or a BLE session overlapping a USB one. It followed an
+afternoon of heavy probing plus several ChromIQ launches whose bridge opened the
+port, so frequency is the leading suspect.
+
+**For the user-facing message**, the order that matches the evidence is:
+power-cycle the instrument first (the confirmed cure), then the cable, then the
+phone app, then permissions. The current wording leads with the cable and does
+not mention a power cycle at all.

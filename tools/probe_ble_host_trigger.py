@@ -56,7 +56,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from bleak import BleakClient, BleakScanner        # noqa: E402
+try:
+    from bleak import BleakClient, BleakScanner    # noqa: E402
+except ModuleNotFoundError:                        # a bare `python3` misses it
+    sys.exit("bleak is not installed for this interpreter.\n"
+             "Run the probe with the repo's own venv:\n\n"
+             "  ./.venv/bin/python tools/probe_ble_host_trigger.py\n")
 
 FFE0 = "0000ffe0-0000-1000-8000-00805f9b34fb"
 FFE1 = "0000ffe1-0000-1000-8000-00805f9b34fb"

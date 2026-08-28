@@ -238,11 +238,37 @@ scale, and the colour maths — against the vendor firmware's own arithmetic. It
 is much stronger evidence than the air/paper control, because it matches a
 specific number the device computed itself.
 
-⚠ **It does NOT establish that the display uses D65.** The spectrum is nearly
-flat, so both illuminants give an *identical* L\* to three decimals and differ
-only in a\* and b\* by ~0.2. D65 fits four times better, but a near-neutral
-sample is the worst possible discriminator between illuminants. **PROBABLE, not
-VERIFIED.** A saturated patch would settle it in one reading.
+### The measurement condition — settled by the device itself
+
+**The display's top line reads `D65/10`** (operator, 2026-08-28). That is the
+authoritative answer, and it is **not** what ChromIQ issue #159 implies: #159
+records ColorQC2 pinning **M0 / D50 / 1931 2°**. So the *device's own display
+condition* and the *vendor application's export condition* are **different
+things**, and conflating them would put the wrong illuminant on every imported
+reading.
+
+Recomputing the same spectrum under all four combinations:
+
+| | L\* | a\* | b\* | ΔE₇₆ vs display |
+|---|---|---|---|---|
+| **D65 / 10°** | **91.643** | −0.730 | +1.380 | **0.054** |
+| D65 / 2° | 91.661 | −0.760 | +1.305 | 0.062 |
+| D50 / 10° | 91.649 | −0.541 | +1.336 | 0.241 |
+| D50 / 2° | 91.661 | −0.560 | +1.251 | 0.247 |
+
+**What this evidence does and does not show.** It **confirms D65 over D50**
+(0.054 vs 0.247, a factor of four). It does **not** discriminate 2° from 10°
+— 0.054 against 0.062 is far too close on a near-neutral sample, which is the
+worst possible case for separating observers. The observer is settled by the
+**label on the screen**, not by this arithmetic; the arithmetic is merely
+consistent with it, with L\* agreeing to 0.003.
+
+`src/cr30/colour.py` now defaults to **CIE 1964 10° + D65** to match the device,
+with `use_observer("2")` available. Both observers self-validate against
+published white-point chromaticities before any Lab value is reported.
+
+⚠ **`D65/10` implies the condition is a device SETTING** — something has to be
+selecting it. See the note on parameter commands below.
 
 ### A candidate gate flag at offset 24 — HYPOTHESIS
 
@@ -297,3 +323,37 @@ Whether the USB path returns a canned value or silently repeats the last one,
 spectra.** A live backend must detect byte-identical consecutive readings and
 refuse them, because both failure modes produce data that is plausible,
 self-consistent, and completely wrong.
+
+
+---
+
+## ⚠ Parameter commands: the negative result was scoped to USB only
+
+`[CR30-SKEPTIC]` concluded from ten vendor sniffer sessions that **no
+sensor-parameter command exists**, and that ChromIQ issue #159's hope of a
+faster reading via undocumented parameters is a dead end. That conclusion was
+drawn entirely from **ColorQC2 over USB**.
+
+Two observations reopen it:
+
+1. **The display reads `D65/10`.** An illuminant and observer are being
+   *selected*, so a setting exists in the device whether or not ColorQC2 ever
+   changes it.
+2. **The iOS app can change device settings over Bluetooth** (operator,
+   2026-08-28, not yet exercised).
+
+**Revised status: the negative result stands for the USB/ColorQC2 corpus and
+does not generalise.** Parameter commands may exist and simply never be
+exercised by the Windows application — which is exactly the case where a
+different client on a different transport is the only way to see them.
+
+This raises the value of the BLE investigation considerably. It is no longer
+only "cable-free operation"; it is **the most promising route to the
+configuration surface**, and it is reachable from the macOS host with `bleak`,
+no driver required.
+
+**Next**: `EXP-BLE-001` (does the device advertise, and with what GATT profile?)
+before any attempt to change a setting. Changing settings from the app while
+capturing is a later step and must not be done casually — an illuminant or
+observer change would alter every subsequent reading, and the operator should
+record the before state so it can be restored.

@@ -52,13 +52,30 @@ READ = f10(0x02, 0x10)
 BB14 = {s: f10(0x14, s) for s in (0x00, 0x08, 0x09)}
 
 
+HDR = bytes([0xBB, 0x02, 0x10, 0x00])          # reply header to resync on
+
+
 class Link:
     def __init__(self, client): self.c = client; self.buf = bytearray()
 
     def cb(self, _, data): self.buf.extend(bytes(data))
 
-    async def ask(self, frame, polls=8, wait=0.35):
+    async def drain(self, wait=0.4):
+        """Flush stragglers BEFORE a command.
+
+        Notifications from the previous exchange keep arriving after we stop
+        polling. Left in place they prefix the next reply, shifting every
+        offset -- which produced fifteen garbage readings in the first run.
+        """
+        for _ in range(3):
+            self.buf.clear()
+            await asyncio.sleep(wait)
+            if not self.buf:
+                break
         self.buf.clear()
+
+    async def ask(self, frame, polls=10, wait=0.35):
+        await self.drain()
         await self.c.write_gatt_char(FFE1, frame, response=False)
         await asyncio.sleep(wait)
         quiet = 0
@@ -67,15 +84,35 @@ class Link:
             await self.c.write_gatt_char(FFE1, POLL, response=False)
             await asyncio.sleep(wait)
             quiet = quiet + 1 if len(self.buf) == n else 0
-            if quiet >= 2 and self.buf: break
+            if quiet >= 3 and self.buf:
+                break
         return bytes(self.buf)
 
     async def measurement(self):
+        """Decode a stored measurement, or return a REASON it is not one.
+
+        Never returns a half-parsed reading (ERRORS.md): it resyncs on the reply
+        header rather than trusting offset 0, then bounds-checks every value.
+        """
         b = await self.ask(READ)
-        if len(b) < 196: return None, b
-        return {"spectrum": [round(x, 6) for x in struct.unpack_from("<31f", b, 8)],
-                "lab_device": [round(x, 4) for x in struct.unpack_from("<3f", b, 184)],
-                "raw_len": len(b)}, b
+        i = b.find(HDR)
+        if i < 0:
+            return None, b, f"reply header bb 02 10 00 not found in {len(b)} bytes"
+        if len(b) - i < 196:
+            return None, b, f"only {len(b)-i} bytes after header, need 196"
+        spec = list(struct.unpack_from("<31f", b, i + 8))
+        lab = list(struct.unpack_from("<3f", b, i + 184))
+        import math
+        if not all(math.isfinite(x) for x in spec + lab):
+            return None, b, "non-finite value in spectrum or Lab"
+        if not all(-1.0 <= x <= 200.0 for x in spec):
+            return None, b, (f"reflectance out of physical range "
+                             f"[{min(spec):.3g} .. {max(spec):.3g}] %")
+        if not (0.0 <= lab[0] <= 100.0):
+            return None, b, f"L* out of range: {lab[0]:.3g}"
+        return ({"spectrum": [round(x, 6) for x in spec],
+                 "lab_device": [round(x, 4) for x in lab],
+                 "header_at": i, "raw_len": len(b)}, b, None)
 
 
 SAVE = ROOT / "captures/raw/EXP-MEAS-005-spot-workflow.json"
@@ -87,9 +124,17 @@ def _save(log):
 
 async def run(link, log, label, note):
     print(f"\n  reading ({label}) ...")
-    m, raw = await link.measurement()
+    for attempt in range(3):
+        m, raw, why = await link.measurement()
+        if m is not None:
+            break
+        print(f"    !! not a valid reading: {why}   (attempt {attempt+1}/3)")
     if m is None:
-        print(f"    only {len(raw)} bytes -- not a measurement"); return None
+        print("    SKIPPED -- nothing recorded for this step, by design.")
+        log.setdefault("rejected", []).append(
+            {"label": label, "reason": why, "raw": raw.hex()})
+        _save(log)
+        return None
     s = m["spectrum"]; L = m["lab_device"]
     print(f"    mean {statistics.fmean(s):6.2f}%   device Lab "
           f"L*{L[0]:7.3f} a*{L[1]:+7.3f} b*{L[2]:+7.3f}")
@@ -141,13 +186,17 @@ async def main():
         except Exception: pass
 
     # ---- analysis --------------------------------------------------------
+    if log.get("rejected"):
+        print(f"\n  {len(log['rejected'])} reading(s) REJECTED as malformed -- "
+              "recorded in the capture, not counted as data.")
     pos = [r for r in log["readings"] if r["label"].startswith("positioning")]
     if len(pos) > 1:
         use_observer("10")
         labs = [spectrum_to_lab(r["spectrum"], D65) for r in pos]
         mean = [statistics.fmean(x[i] for x in labs) for i in range(3)]
         des = [sum((x[i] - mean[i]) ** 2 for i in range(3)) ** 0.5 for x in labs]
-        bands = [statistics.pstdev([r["spectrum"][i] for r in pos]) for i in range(31)]
+        bands = [statistics.pstdev([r["spectrum"][i] for r in pos])
+                 for i in range(31)]   # safe: every reading was bounds-checked
         log["positioning_mean_dE_from_centroid"] = round(statistics.fmean(des), 4)
         log["positioning_max_dE"] = round(max(des), 4)
         log["positioning_worst_band_sd"] = round(max(bands), 4)

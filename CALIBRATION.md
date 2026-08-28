@@ -2,7 +2,67 @@
 
 **Status: not started — and the prior art's premise is already wrong.**
 
+## 🔴 THE OPERATOR WAS RIGHT: magnet + measurement = WHITE CALIBRATION
+
+**VERIFIED 2026-08-28, the hard way — we corrupted the unit's calibration.**
+
+After `EXP-MEAS-003` (cap **reversed**, green face under the aperture), the same
+plain paper that read **85.84 %** mean in `EXP-MEAS-001` reads **156.8 %**, with
+bands up to 193 %. Reflectance above 100 % is physically impossible for paper.
+
+Reconstructing the implied stored white reference from the band-by-band ratio
+gives a curve peaking at **500 nm** and falling to ~70 % at 400 nm and 620–700 nm.
+**That is a green spectrum.** The device's white reference was overwritten with
+a measurement of the green face of the cap.
+
+The distortion in `EXP-MEAS-003`'s own before/after patch pair and the distortion
+in `EXP-CAL-002`'s paper reading have a normalised shape correlation of
+**+0.964** — the same distortion, so **one event** during `EXP-MEAS-003` caused
+it, and it persists.
+
+### This reframes the "gating" result completely
+
+The device is **not** "returning a canned value instead of measuring". It is
+**performing a white calibration against whatever is under the aperture, and
+reporting the nominal tile value as confirmation.** That is why the returned
+spectrum is a bit-identical constant: a surface just used as the white reference
+reads as the nominal reference *by definition*.
+
+Supporting evidence: `EXP-MEAS-002` ran with the cap the **correct** way round,
+did both a button press and a host trigger, and the patch afterwards was fine
+(ΔE 0.438). Calibrating against the actual white tile is harmless — it restores
+the correct reference. Calibrating against green is not.
+
+### 🔴 The unresolved question, and it is the critical one for ChromIQ
+
+`EXP-MEAS-003` performed **both** a host trigger (step 3) and a button press
+(step 4) with green under the aperture. **Either could have written the
+calibration**, and the data cannot separate them.
+
+If a **host-triggered** measurement can overwrite the white reference, then a
+live ChromIQ backend that sends a trigger while a magnet is nearby **destroys
+the user's calibration** — far worse than merely returning wrong data, and
+silent. Until this is separated, **no host trigger may be sent with a magnet
+present.**
+
+### ⚠ My own analysis error, recorded so it is not repeated
+
+`EXP-CAL-002` classified this as *"different spot, NOT a calibration shift"*, and
+before that I called the `EXP-MEAS-003` before/after difference "probable
+repositioning". Both were wrong, for the same reason: **the heuristic assumed a
+calibration change is spectrally neutral**, so a varying band ratio was read as
+evidence *against* one. Calibrating against a **coloured** reference produces
+exactly a spectrally shaped ratio.
+
+The check that would have caught it instantly was staring at the output:
+**paper cannot read above 100 %**. A physical-plausibility bound is worth more
+than a clever ratio statistic. `tools/probe_calibration_check.py` must test that
+first.
+
 ## ⚠ DO NOT recalibrate this unit — standing instruction
+
+**Superseded for the specific case of restoring the white tile** — see above.
+The reasoning below still applies to *speculative* recalibration.
 
 Not before `EXP-CAL-002`, and not casually at any point. Four reasons, and the
 first is the one that bites:

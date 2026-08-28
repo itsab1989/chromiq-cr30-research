@@ -45,7 +45,13 @@ def main():
     print(f"\n  now {statistics.fmean(now):.2f}%   baseline {statistics.fmean(REF):.2f}%")
     print(f"  band ratio: mean {mean:.3f}  sd {sd:.3f}")
     print(f"  dE76 vs baseline: {de:.2f}")
-    if abs(mean - 1) < 0.05 and de < 3:
+    # Physical bound FIRST. Paper cannot exceed 100 % reflectance; a clever
+    # ratio statistic must never be allowed to explain that away (it was, once).
+    if max(now) > 105.0:
+        v = ("IMPOSSIBLE READING -- %.1f%% peak reflectance. Paper cannot exceed "
+             "100%%. The stored white reference is WRONG. Recalibrate against "
+             "the real white tile before using this device." % max(now))
+    elif abs(mean - 1) < 0.05 and de < 3:
         v = "CALIBRATION UNCHANGED -- readings agree with the baseline."
     elif sd < 0.05:
         v = ("UNIFORM SHIFT of %.1f%% -- a nearly constant ratio across all bands "

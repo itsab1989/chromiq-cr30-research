@@ -2,6 +2,29 @@
 
 **Status: not started — and the prior art's premise is already wrong.**
 
+## ⚠ DO NOT recalibrate this unit — standing instruction
+
+Not before `EXP-CAL-002`, and not casually at any point. Four reasons, and the
+first is the one that bites:
+
+1. **It destroys the evidence.** `EXP-CAL-002` exists to detect whether the
+   stored calibration moved. Recalibrating first erases the very difference it
+   measures, and the question becomes permanently unanswerable.
+2. **It invalidates the corpus.** Every spectrum captured so far — the air and
+   paper controls, the repeatability set, the rank-analysis patches, both gated
+   runs — shares one calibration state. Recalibrating makes none of them
+   comparable with anything measured afterwards, including the `EXP-SPEC-001`
+   rank work that depends on a consistent set.
+3. **Nothing indicates it is needed.** Air reads 0.002 %, paper 85.84 %, and
+   repeatability is 0.056 % worst-band SD. That is a healthy instrument.
+4. **The procedure is not established.** There is no calibration entry in the
+   device UI, there is no black tile on this unit, and `BB 10` / `BB 11` have
+   never been sent to it. Doing it blind is exactly what `CLAUDE.md` §11
+   forbids.
+
+If a genuine drift is ever demonstrated, recalibration becomes a *designed
+experiment* with a recorded before-state — not a remedy applied on suspicion.
+
 ## ⚠ This unit has NO black tile — operator report, 2026-08-28
 
 Reported by the device's owner:

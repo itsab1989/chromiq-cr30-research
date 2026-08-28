@@ -143,6 +143,19 @@ Consequences for an implementation:
 4. **Do not retry silently for long.** Ten seconds of nothing per patch, times a
    chart, is a miserable way to discover the instrument dozed off.
 
+### The instrument's display shows transport state — and `U` is not a health light
+
+Observed live (operator, 2026-08-28): the display carries a **`U`** while a USB
+cable is attached and a **`B`** while a Bluetooth session is open. The `B`
+appeared the moment this project connected over BLE and vanished the moment it
+disconnected, so `B` tracks an *active connection*, not merely a powered radio.
+
+⚠ **`U` was showing throughout the silent-USB incident above.** So `U` means "a
+cable is plugged in", not "the USB link is working" — the instrument's own
+display cannot tell the user their serial link has wedged any more than the host
+can. Do not treat it, or the presence of the port node, as evidence of a healthy
+link. Only a reply to `AA 0A 00 00` is that.
+
 **Not established:** what wedges the serial link (idle time, the number of
 open/close cycles, or a specific command), whether BLE is affected by the same
 condition (it was not here), and whether anything short of a replug clears it.

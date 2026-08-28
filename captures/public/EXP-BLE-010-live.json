@@ -1,0 +1,17 @@
+{
+  "experiment": "EXP-BLE-010",
+  "utc": "2026-08-28T14:54:48.207638+00:00",
+  "events": [
+    {
+      "char": "ffe1",
+      "len": 200,
+      "hex": "bb02100001900a1fe6c98c4299a59542c2de9a420acc9c429ad59b42a9579b42d2199c4222169d421c909e426b49a0421d64a1426c7aa1421d17a1423445a04241dc9f42c8909f42b8459f423f559f4201949f42bde49f42d3d29f422bcc9f42b3f29f42891da0421c4aa0428b3ba14270e7a042415ea0428f279f42cea79d4245dd9b4200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e348b7426c2647bfe45dae3f0000ff7f"
+    }
+  ],
+  "reassembled_len": 200,
+  "reassembled": "bb02100001900a1fe6c98c4299a59542c2de9a420acc9c429ad59b42a9579b42d2199c4222169d421c909e426b49a0421d64a1426c7aa1421d17a1423445a04241dc9f42c8909f42b8459f423f559f4201949f42bde49f42d3d29f422bcc9f42b3f29f42891da0421c4aa0428b3ba14270e7a042415ea0428f279f42cea79d4245dd9b4200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e348b7426c2647bfe45dae3f0000ff7f",
+  "verdict": "partial: 200 bytes; layout offsets are from a single vendor capture and may differ per message",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

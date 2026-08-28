@@ -84,7 +84,16 @@ to the session-start baseline**. Nothing was written to the device — no
 firmware, no calibration, no parameter. `BB 10` / `BB 11` (the calibration
 writes) were never sent.
 
-## BLE — located, mapped, not talking
+## BLE — ✅ WORKING
+
+Read over Bluetooth from macOS with no driver and no cable. The missing
+ingredient was a **single `0x01` poll byte**; BLE uses **10-byte** frames, not
+USB's 60, and the same checksum rule generalises. The device transmits its own
+L\*a\*b\*. BLE spectrum matches USB to 4.7e-7. See `TRANSPORT_BLE.md`.
+
+Open: the `bb 14` command family, unexplained.
+
+## superseded — BLE was located, mapped, not talking
 
 Advertises as its own USB device-id · `ffe0` with `ffe1`/`ffe2` (write+notify)
 and `ffe3` (write) · MTU 244 · one connection only · stops advertising when

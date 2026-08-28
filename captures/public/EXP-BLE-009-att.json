@@ -1,0 +1,259 @@
+{
+  "att": [
+    {
+      "t": 1787935760.749,
+      "dir": "out",
+      "op": 18,
+      "opname": "WRITE_REQ",
+      "payload": "360001000000000002"
+    },
+    {
+      "t": 1787935760.855,
+      "dir": "in",
+      "op": 19,
+      "opname": "WRITE_RSP",
+      "payload": ""
+    },
+    {
+      "t": 1787935770.469,
+      "dir": "out",
+      "op": 18,
+      "opname": "WRITE_REQ",
+      "payload": "240001000000000002"
+    },
+    {
+      "t": 1787935770.552,
+      "dir": "in",
+      "op": 19,
+      "opname": "WRITE_RSP",
+      "payload": ""
+    },
+    {
+      "t": 1787935777.281,
+      "dir": "out",
+      "op": 2,
+      "opname": "MTU_REQ",
+      "payload": "0f02"
+    },
+    {
+      "t": 1787935777.335,
+      "dir": "in",
+      "op": 3,
+      "opname": "MTU_RSP",
+      "payload": "f400"
+    },
+    {
+      "t": 1787935777.335,
+      "dir": "out",
+      "op": 16,
+      "opname": "READ_BY_GRP_REQ",
+      "payload": "0100ffff0028"
+    },
+    {
+      "t": 1787935777.395,
+      "dir": "in",
+      "op": 17,
+      "opname": "READ_BY_GRP_RSP",
+      "payload": "060100070000180800ffffe0ff"
+    },
+    {
+      "t": 1787935777.396,
+      "dir": "out",
+      "op": 8,
+      "opname": "READ_BY_TYPE_REQ",
+      "payload": "0800ffff0328"
+    },
+    {
+      "t": 1787935777.455,
+      "dir": "in",
+      "op": 9,
+      "opname": "READ_BY_TYPE_RSP",
+      "payload": "0709001c0a00e1ff0c001c0d00e2ff0f000c1000e3ff"
+    },
+    {
+      "t": 1787935777.455,
+      "dir": "out",
+      "op": 8,
+      "opname": "READ_BY_TYPE_REQ",
+      "payload": "1100ffff0328"
+    },
+    {
+      "t": 1787935777.515,
+      "dir": "in",
+      "op": 1,
+      "opname": "ERROR_RSP",
+      "payload": "0811000a"
+    },
+    {
+      "t": 1787935777.52,
+      "dir": "out",
+      "op": 4,
+      "opname": "FIND_INFO_REQ",
+      "payload": "0b000b00"
+    },
+    {
+      "t": 1787935777.575,
+      "dir": "in",
+      "op": 5,
+      "opname": "FIND_INFO_RSP",
+      "payload": "010b000229"
+    },
+    {
+      "t": 1787935777.575,
+      "dir": "out",
+      "op": 18,
+      "opname": "WRITE_REQ",
+      "payload": "0b000100"
+    },
+    {
+      "t": 1787935777.635,
+      "dir": "in",
+      "op": 19,
+      "opname": "WRITE_RSP",
+      "payload": ""
+    },
+    {
+      "t": 1787935779.292,
+      "dir": "out",
+      "op": 8,
+      "opname": "READ_BY_TYPE_REQ",
+      "payload": "01000700002a"
+    },
+    {
+      "t": 1787935779.345,
+      "dir": "in",
+      "op": 9,
+      "opname": "READ_BY_TYPE_RSP",
+      "payload": "0d0300434d3435344d3032323300"
+    },
+    {
+      "t": 1787935784.222,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.265,
+      "dir": "in",
+      "op": 27,
+      "opname": "NOTIFY",
+      "payload": "0a00bb01000001900a1fff75"
+    },
+    {
+      "t": 1787935784.269,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.329,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb1408a0916a0100ff72"
+    },
+    {
+      "t": 1787935784.373,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb02100000000000ffcc"
+    },
+    {
+      "t": 1787935784.374,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.481,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb02100000000000ffcc"
+    },
+    {
+      "t": 1787935784.482,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.585,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb02100000000000ffcc"
+    },
+    {
+      "t": 1787935784.686,
+      "dir": "in",
+      "op": 27,
+      "opname": "NOTIFY",
+      "payload": "0a00bb02100001900a1fe6c98c4299a59542c2de9a420acc9c429ad59b42a9579b42d2199c4222169d421c909e426b49a0421d64a1426c7aa1421d17a1423445a04241dc9f42c8909f42b8459f423f559f4201949f42bde49f42d3d29f422bcc9f42b3f29f42891da0421c4aa0428b3b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bb02100001900a1fe6c98c4299a59542c2de9a420acc9c429ad59b42a9579b42d2199c4222169d421c"
+    },
+    {
+      "t": 1787935784.691,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.795,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb1409a0916a0100ff73"
+    },
+    {
+      "t": 1787935784.866,
+      "dir": "in",
+      "op": 27,
+      "opname": "NOTIFY",
+      "payload": "0a00909e426b49a0421d64a1426c7aa1421d17a1423445a04241dc9f42c8909f42b8459f423f559f4201949f42bde49f42d3d29f422bcc9f42b3f29f42891da0421c4aa0428b3ba14270e7a042415ea0428f279f42cea79d4245dd9b4200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e348b7426c2647bfe45dae3f00000000bb1400a0916a0100ff6a"
+    },
+    {
+      "t": 1787935784.871,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a0001"
+    },
+    {
+      "t": 1787935784.974,
+      "dir": "out",
+      "op": 82,
+      "opname": "WRITE_CMD",
+      "payload": "0a00bb1409a0916a0100ff73"
+    },
+    {
+      "t": 1787935785.015,
+      "dir": "in",
+      "op": 27,
+      "opname": "NOTIFY",
+      "payload": "0a00bb1400a0916a0100ff6a"
+    },
+    {
+      "t": 1787935790.751,
+      "dir": "out",
+      "op": 18,
+      "opname": "WRITE_REQ",
+      "payload": "360001000000000003"
+    },
+    {
+      "t": 1787935790.855,
+      "dir": "in",
+      "op": 19,
+      "opname": "WRITE_RSP",
+      "payload": ""
+    }
+  ],
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

@@ -76,130 +76,84 @@ packets is **not supported** on present evidence. It is not yet *disproven*
 either — see below. This is exactly why the standing rule is that it must be
 proved, not assumed.
 
-## Bounded negative: BLE cannot be activated by guessing — CONCLUDED
+## ✅ SOLVED — BLE works, and it is a DIFFERENT protocol from USB
 
-`EXP-BLE-008`: the device was resolved while free, the operator connected the
-vendor app until the indicator lit, then disconnected it. **We reconnected 0.91 s
-later** and polled the identity query 39 times over 40 s.
+`EXP-BLE-009` (vendor capture) → `EXP-BLE-010` (our own client, working).
+2026-08-28.
 
-**Zero replies. The indicator never lit.** Activation ends with the app's
-connection; there is no grace window to slip into.
+A PacketLogger trace of the vendor iOS app was parsed down to the ATT layer
+(`tools/parse_pklg.py`). It answered the question in one pass, and every earlier
+hypothesis was wrong.
 
-### What has been eliminated
+### Why nothing we sent ever worked
 
-| Variable | Values tried | Result |
+**The host must write a single `0x01` byte to poll.** That is the entire missing
+ingredient. The device answers a poll, not a command-and-wait. We had been
+writing 60-byte USB frames and waiting — so it never spoke, and that had nothing
+to do with channel, chunk size, sleep or activation.
+
+### The BLE protocol — VERIFIED against our own working client
+
+| | USB | **BLE** |
 |---|---|---|
-| Characteristic | `ffe1`, `ffe2`, `ffe3` | all silent |
-| Write mode | with / without response | all silent |
-| Write chunking | 60, 3×20, 4×15, 2×30, 6×10 | all silent |
-| USB present | connected / unplugged, on battery | all silent |
-| Direction | host-initiated write / passive listen | all silent |
-| Timing | immediately after the app released the device | silent |
+| Frame size | **60 bytes** | **10 bytes** |
+| Transport | one `write()` of exactly 60 | ATT write to `ffe1` |
+| Flow control | request → reply | **write `0x01` to poll**; replies arrive as notifications |
+| Spectral axis in header | `28 1f 0a` = 40(×10), 31, 10 | `01 90 0a 1f` = **400 (BE uint16)**, 10, 31 |
+| Bulk reply | 4 chunk fetches, 50 bytes each | one 200-byte notification |
+| Checksum | `sum(0..58) mod 256` | **`sum(0..8) mod 256`** — the same rule, generalised |
 
-⚠ **Most of these were run while the device's Bluetooth was asleep**, so they
-are *untested*, not disproven. `EXP-BLE-008` is the exception: it ran 0.91 s
-after a confirmed-lit indicator, and is the one honest negative in the set.
+**The checksum rule generalises across transports and frame sizes**: sum every
+byte except the last, marker included. That is a genuine unification, and it is
+further confirmation that the USB rule (not the published one) is correct.
 
-### Why guessing has to stop here
+**⚠ ChromIQ issue #159 assumed "the framing on top is probably the same 60-byte
+packets". It is not.** BLE is a different frame size, a different flow-control
+model, and a different axis encoding.
 
-Activation is **one second of traffic between the phone and the device**, and
-every attempt above tries to infer its contents from outside. That is the wrong
-instrument for the question. Six hypotheses have been generated and none was
-testable without seeing what the app actually sends.
+### Reply layout — VERIFIED (`bb 02 10`, read stored measurement)
 
-**Next step is capture, not another hypothesis** — see `EXP-BLE-009` below.
+```
+offset   0   8 bytes   header  bb 02 10 00 | 01 90 (=400nm BE) | 0a (10nm) | 1f (31)
+offset   8   124 bytes 31 x float32 LE  -- the spectrum, percent reflectance
+offset 132   52 bytes  13 x float32 zero -- reserved/unused
+offset 184   12 bytes  3 x float32 LE   -- L*, a*, b*  FROM THE DEVICE
+offset 196   4 bytes   0x7FFF0000 (NaN) -- terminator
+             = 200 bytes total
+```
 
-## The untested variable, and it is the obvious one
+### Two cross-validations, both exact
 
-**The device was connected to USB throughout.** Devices of this class commonly
-route the protocol to whichever transport is active, with USB taking priority —
-which would explain accepted writes and total silence perfectly.
+1. **The BLE spectrum equals the USB spectrum to float32 precision** — maximum
+   difference **4.7 × 10⁻⁷** across all 31 bands, measured on the same stored
+   reading. Two independent transports, identical data. The decode is right.
+2. **The device transmits its own L\*a\*b\***: `91.6424 / −0.7779 / +1.3622`,
+   matching the display exactly. Our computation from the spectrum gives
+   ΔE **0.051** under **D65/10°**, against 0.239 for D50/10° and 0.062 for
+   D65/2°. Our colour maths is now validated against the firmware's own
+   arithmetic rather than assumed — and D65 over D50 is confirmed a second time,
+   independently.
 
-`EXP-BLE-004` is therefore: **unplug USB, leave the device on battery, retry the
-identical sweep.** It needs a human, it takes one minute, and it is the single
-highest-value BLE experiment available. Until it has run, no conclusion about
-BLE framing is safe in either direction.
+### Commands seen in the vendor session
 
-Other hypotheses, in descending plausibility, if USB-off does not fix it:
-pairing/bonding required · a wake or handshake sequence must precede commands ·
-Bluetooth must be enabled from the device or the vendor app first · the protocol
-differs on BLE · `fee7` is the real channel and macOS is not exposing it.
+| Frame | Meaning |
+|---|---|
+| `01` (1 byte) | **poll** — the device sends its next pending data |
+| `bb 02 10 00 00 00 00 00 ff cc` | read the stored measurement → the 200-byte reply above |
+| `bb 14 08 a0 91 6a 01 00 ff 72` | unknown; carries a 4-byte field that looks like a timestamp |
+| `bb 14 09 a0 91 6a 01 00 ff 73` | unknown; same field, sub `0x09` |
+| `bb 01 00 00 01 90 0a 1f ff 75` | *(device → host)* hello / axis announcement |
 
-The manufacturer lists USB **and** Bluetooth, with Android, iOS and WeChat
-clients. iOS support **strongly implies BLE rather than Bluetooth Classic**,
-because Apple restricts Classic SPP to MFi-certified hardware while BLE is open
-to any app. That is an inference, not a fact.
+The `bb 14` family is **not yet understood** and is the obvious next target —
+it is the only command class the vendor app used that we cannot explain.
 
-## Why this matters less than issue #159 assumed
+### Practical consequence for ChromIQ
 
-Issue #159 treats BLE as strategically important *because* macOS USB was
-believed to need a kernel extension. **That premise is now DISPROVEN** — see
-`PLATFORM_SUPPORT.md`. BLE is still worth investigating (cable-free operation,
-and it is the only transport the mobile apps use), but it is **no longer on the
-critical path for macOS support**.
+**A CR30 can be read from macOS over Bluetooth with no driver, no kernel
+extension and no cable**, using `bleak`, which is cross-platform. That was the
+strategic hope in issue #159 §1b, and it is now demonstrated rather than assumed
+— though for a different reason than #159 gave, since USB needs no driver on
+macOS either.
 
-## What must be established — none of it assumed
-
-1. Does the device advertise at all, and under what name?
-2. Must Bluetooth be enabled on the device by a button or menu action first?
-3. Service and characteristic UUIDs; read/write/notify properties.
-4. Pairing/bonding requirements.
-5. **Whether the same 60-byte framing is carried, or whether BLE adds its own
-   framing layer.** A 60-byte frame does not fit the 20-byte default ATT MTU,
-   so *some* fragmentation scheme must exist. Its shape is unknown.
-6. Whether commands and responses use the same characteristic pair as USB uses
-   directions, and whether button events arrive as notifications.
-
-⚠ **"BLE probably uses the same protocol" is not a result.** It must be proved
-or disproved against captured traffic.
-
-## Method
-
-Confirmed: macOS is BLE-capable natively (controller `BCM_4388`, GATT among its supported
-services) and `bleak` needs no driver, so discovery can start on the macOS host.
-If GATT enumeration proves insufficient, an Android HCI snoop log from the
-vendor app is the next step — and that requires a phone, which is a human action.
-
-**Do not fight VMware Bluetooth passthrough.** If Windows BLE is unreliable,
-move the experiment to the macOS host and record the transition.
-
-## Redaction
-
-The device's Bluetooth address is a unique identifier. It goes in
-`LOCAL_DEVICE_IDS.md` (gitignored), never into a committed document.
-
-
----
-
-## EXP-BLE-009 — capture the activation handshake · SPECIFIED, NOT RUN
-
-**The only remaining question is: what does the vendor app send in the second
-between connecting and the indicator lighting?**
-
-Everything else about BLE is known: the device advertises as its own USB
-device-id, exposes `ffe0`/`ffe1`-`ffe3` as a write+notify transport, negotiates a
-244-byte MTU, accepts one connection at a time, and stops advertising when taken.
-
-### Method
-
-Apple's **PacketLogger** (in *Additional Tools for Xcode*) records Bluetooth HCI
-from a USB-attached iOS device. It is Apple's supported route and needs no
-jailbreak and no sniffer hardware. Neither PacketLogger nor Xcode is installed on
-this Mac (checked 2026-08-28).
-
-Alternatives, if that route is unavailable:
-
-| Route | Needs | Notes |
-|---|---|---|
-| Android HCI snoop log | an Android phone + the vendor app | Developer options → *Enable Bluetooth HCI snoop log*; simplest if an Android device exists |
-| nRF52840 dongle + Wireshark | ~£10 hardware | Sniffs over the air; independent of both phones |
-| macOS PacketLogger, Mac as central | already possible | Captures **our** traffic only — useless here, since our traffic is what fails |
-
-### What to extract
-
-The frames the app writes between connect and the indicator lighting: which
-characteristic, how many bytes, whether they are 60-byte CR30 frames at all, and
-whether the device replies before the indicator lights. That sequence is the
-activation handshake, and with it the rest of the BLE work is mechanical —
-`src/cr30/transport.py` already abstracts transports, so a working BLE transport
-is a small addition once activation is known.
+⚠ The device stops advertising while a central holds it, so the phone app and
+ChromIQ cannot both be connected.

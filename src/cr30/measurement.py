@@ -188,11 +188,33 @@ class Measurement:
                                    "flagged this reading: frame offset 24 = 1.)")
         if self.looks_like_calibration_tile():
             raise MeasurementError(MAGNET_MESSAGE)
+        if self.zero_run() >= 3:
+            raise MeasurementError(
+                f"{self.zero_run()} consecutive bands are exactly 0.0 %R. That is "
+                "a truncated or zero-filled reply, not a dark sample -- a real "
+                "dark patch still reads a few percent.")
         if self.identical_to(previous):
             raise MeasurementError(
                 "reading is bit-identical to the previous one. Either no new "
                 "measurement was taken, or a magnet is gating the device. "
                 "Genuine repeats differ in the low bits.")
+
+    def zero_run(self, n: int = 3) -> int:
+        """Longest run of EXACTLY 0.0 bands.
+
+        A truncated, zero-filled reply looks structurally perfect: right header,
+        right length, valid checksum. The vendor's own 410-byte BLE stream is a
+        truncated reply followed by a complete one, and a naive first-match scan
+        takes the truncated one -- five bands of 0.0 %R and a Lab of pure black,
+        which every other check accepts.
+
+        A real dark patch reads a few percent, never exactly 0.0 across a run.
+        """
+        best = run = 0
+        for v in self.values:
+            run = run + 1 if v == 0.0 else 0
+            best = max(best, run)
+        return best
 
     # -- convenience -----------------------------------------------------
     @property

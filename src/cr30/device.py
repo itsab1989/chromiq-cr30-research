@@ -71,8 +71,19 @@ class CR30:
         self.model = ident.model
         return ident
 
-    def trigger(self) -> None:
-        """Ask the device to measure NOW (USB only).
+    def trigger_unsafe(self) -> None:
+        """Ask the device to measure NOW (USB only). NOT for a ChromIQ backend.
+
+        ⚠ **Deliberately not called `trigger`, and deliberately not part of the
+        recommended integration surface.** The host CANNOT see whether a magnet
+        is near the aperture, so the rule "do not trigger with a magnet present"
+        is unenforceable in software. `EXP-MEAS-003` could not establish whether
+        the host trigger or the button press performed the write that corrupted
+        this unit's white reference, so a backend that never sends `BB 01 00`
+        cannot cause it either way.
+
+        The spot workflow does not need this: the operator presses the
+        instrument's own button and `read_measurement()` collects the result.
 
         ⚠ Not to be used near a magnet -- see `usb_measure.trigger`. The spot
         workflow does not need it: the operator presses the instrument's own
@@ -111,17 +122,44 @@ class CR30:
             self._previous = m
             return m
         raw = self._t.ask(ble.READ_MEASUREMENT)
-        i = raw.find(ble.MEASUREMENT_HDR)
-        if i < 0:
+        # A stream can hold MORE THAN ONE reply: the vendor's own 410-byte BLE
+        # capture is a truncated, zero-filled reply followed by a complete one.
+        # A first-match scan takes the truncated one and every length and
+        # checksum check still passes. So collect EVERY candidate and keep the
+        # last one that survives validation.
+        offsets, k = [], raw.find(ble.MEASUREMENT_HDR)
+        while k >= 0:
+            offsets.append(k)
+            k = raw.find(ble.MEASUREMENT_HDR, k + 1)
+        if not offsets:
             raise MeasurementError(
                 f"measurement header not found in {len(raw)} bytes")
-        if len(raw) - i < ble.MIN_REPLY:
+        chosen = last_err = None
+        for i in reversed(offsets):
+            if len(raw) - i < ble.MIN_REPLY:
+                last_err = (f"candidate at {i}: only {len(raw)-i} bytes, "
+                            f"need {ble.MIN_REPLY}")
+                continue
+            a = ble.BleAxis.parse(raw[i:i + 8])
+            v = list(struct.unpack_from(f"<{a.bands}f", raw, i + ble.SPECTRUM_AT))
+            l = list(struct.unpack_from("<3f", raw, i + ble.LAB_AT))
+            probe = Measurement(a.wavelengths(), [round(x, 6) for x in v],
+                                lab=[round(x, 4) for x in l])
+            try:
+                probe.validate()
+                if probe.zero_run() >= 3:
+                    raise MeasurementError(
+                        f"candidate at {i} has {probe.zero_run()} zero bands "
+                        "(truncated reply)")
+            except MeasurementError as e:
+                last_err = str(e); continue
+            chosen, axis, vals, lab = i, a, v, l
+            break
+        if chosen is None:
             raise MeasurementError(
-                f"short reply: {len(raw) - i} bytes after header, "
-                f"need {ble.MIN_REPLY}")
-        axis = ble.BleAxis.parse(raw[i:i + 8])
-        vals = list(struct.unpack_from(f"<{axis.bands}f", raw, i + ble.SPECTRUM_AT))
-        lab = list(struct.unpack_from("<3f", raw, i + ble.LAB_AT))
+                f"no usable reply among {len(offsets)} candidate(s) in "
+                f"{len(raw)} bytes; last reason: {last_err}")
+        i = chosen
         m = Measurement(
             wavelengths=axis.wavelengths(), values=[round(v, 6) for v in vals],
             lab=[round(v, 4) for v in lab], transport=self.kind,

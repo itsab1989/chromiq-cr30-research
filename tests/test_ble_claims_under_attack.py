@@ -8,6 +8,7 @@ can and cannot carry.
 import json
 import pathlib
 import struct
+import pytest
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -105,23 +106,25 @@ def test_the_vendor_stream_contains_a_TRUNCATED_reply_zero_filled():
     assert round(struct.unpack_from("<3f", reps[1], ble.LAB_AT)[0], 3) == 91.642
 
 
-def test_the_shipped_BLE_decoder_ACCEPTS_the_truncated_reply():
-    """Drive `device.CR30.read_measurement`'s own decode over the vendor bytes.
+def test_the_truncated_reply_is_now_REJECTED():
+    """Was `..._ACCEPTS_the_truncated_reply`, pinning the defect. Now pins the fix.
 
-    `device.py:105` does `raw.find(MEASUREMENT_HDR)` and takes the FIRST hit;
-    `:109` only requires 196 bytes after it. There is no checksum over the
-    200-byte reply, no length equality, no terminator check, and `_drain()` is a
-    0.4 s timing heuristic rather than a guarantee. So the truncated reply is
-    decoded and returned as a measurement, and `check_usable` passes it: five
-    bands of exactly 0.0 %R are finite and in range, and a device L* of 0.0
-    satisfies `0.0 <= L* <= 100.0`.
+    [CR30-SKEPTIC] found that the vendor's 410-byte stream is a truncated,
+    zero-filled reply followed by a complete one, and that the shipped decoder's
+    `raw.find()` took the FIRST hit -- returning five bands of exactly 0.0 %R
+    and a Lab of pure black, with every length and range check passing.
+
+    Two fixes, both asserted here: `Measurement.zero_run()` rejects a run of
+    exact zeros as a truncation signature (a real dark patch reads a few
+    percent, never exactly 0.0), and the decoder now enumerates EVERY candidate
+    header and keeps the last one that survives validation.
     """
-    from cr30.measurement import Measurement
+    from cr30.measurement import Measurement, MeasurementError
 
     stream = b"".join(bytes.fromhex(r["payload"])[2:] for r in ATT
                       if r["opname"] == "NOTIFY" and len(r["payload"]) // 2 > 100)
     i = stream.find(ble.MEASUREMENT_HDR)
-    assert i == 0 and len(stream) - i >= ble.MIN_REPLY   # every shipped check passes
+    assert i == 0 and len(stream) - i >= ble.MIN_REPLY   # the naive checks still pass
 
     axis = ble.BleAxis.parse(stream[i:i + 8])
     vals = list(struct.unpack_from(f"<{axis.bands}f", stream, i + ble.SPECTRUM_AT))
@@ -129,10 +132,23 @@ def test_the_shipped_BLE_decoder_ACCEPTS_the_truncated_reply():
     m = Measurement(wavelengths=axis.wavelengths(),
                     values=[round(v, 6) for v in vals],
                     lab=[round(v, 4) for v in lab])
-    m.check_usable(None)                      # must not raise -> the gap
-    assert m.values[-5:] == [0.0] * 5
-    assert m.lab == [0.0, 0.0, 0.0]
+    # the mutation is proven to be present before the guard is trusted
+    assert m.values[-5:] == [0.0] * 5 and m.lab == [0.0, 0.0, 0.0]
+    with pytest.raises(MeasurementError, match="0.0 %R"):
+        m.check_usable(None)
 
+
+def test_a_genuinely_dark_patch_is_not_mistaken_for_truncation():
+    """The zero-run guard must not reject real dark readings.
+
+    Proven on every real reading captured on this unit, the darkest of which
+    (EXP-MEAS-005 rank corpus) means 5.53 %R.
+    """
+    from cr30.measurement import Measurement
+    d = json.loads((PUB / "EXP-MEAS-005-spot-workflow.json").read_text())
+    wl = list(range(400, 701, 10))
+    for r in d["readings"]:
+        assert Measurement(wl, r["spectrum"]).zero_run() < 3
 
 def test_the_terminator_claim_is_false():
     """TRANSPORT_BLE.md: "offset 196: 4 bytes 0x7FFF0000 (NaN) -- terminator".

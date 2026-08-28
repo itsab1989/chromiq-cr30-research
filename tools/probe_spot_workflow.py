@@ -35,6 +35,13 @@ FFE1 = "0000ffe1-0000-1000-8000-00805f9b34fb"
 POLL = bytes([0x01])
 
 
+async def prompt(text):
+    """input() BLOCKS the asyncio event loop, which stalls CoreBluetooth's
+    delegate and drops the BLE link. Every prompt issued while connected must
+    go through a thread. This cost one run."""
+    return await asyncio.get_running_loop().run_in_executor(None, input, text)
+
+
 def f10(cmd, sub=0, param=0, data=b""):
     d = bytearray(10); d[0], d[1], d[2], d[3] = 0xBB, cmd, sub, param
     d[4:4 + len(data)] = data; d[8] = 0xFF; d[9] = sum(d[:9]) % 256
@@ -71,6 +78,13 @@ class Link:
                 "raw_len": len(b)}, b
 
 
+SAVE = ROOT / "captures/raw/EXP-MEAS-005-spot-workflow.json"
+
+
+def _save(log):
+    SAVE.write_text(json.dumps(log, indent=2))
+
+
 async def run(link, log, label, note):
     print(f"\n  reading ({label}) ...")
     m, raw = await link.measurement()
@@ -86,6 +100,7 @@ async def run(link, log, label, note):
     m.update({"label": label, "note": note, "bb14": probes,
               "utc": datetime.datetime.now(datetime.timezone.utc).isoformat()})
     log["readings"].append(m)
+    _save(log)                      # incremental: a later crash costs nothing
     return m
 
 
@@ -102,7 +117,7 @@ async def main():
         await c.start_notify(FFE1, link.cb)
         print(f"connected  mtu {c.mtu_size}")
 
-        input("\n  Cap OFF. Ready? press Enter > ")
+        await prompt("\n  Cap OFF. Ready? press Enter > ")
         await run(link, log, "baseline (whatever is stored)", "before any new reading")
 
         print("\n" + "=" * 72)
@@ -110,17 +125,17 @@ async def main():
         print("  This sets the minimum patch size for a CR30 chart.")
         print("=" * 72)
         for i in range(6):
-            input(f"\n  [{i+1}/6] LIFT the device, put it back on the SAME patch,\n"
-                  f"        press its BUTTON, then press Enter > ")
+            await prompt(f"\n  [{i+1}/6] LIFT the device, put it back on the SAME "
+                         f"patch,\n        press its BUTTON, then press Enter > ")
             await run(link, log, f"positioning {i+1}/6", "lifted and replaced")
 
         print("\n" + "=" * 72)
         print("  PART 2 -- varied patches, for the spectral-rank question.")
         print("=" * 72)
         for i in range(8):
-            input(f"\n  [{i+1}/8] Place on a DIFFERENT patch (as varied as you can:\n"
-                  f"        saturated primaries, a dark one, a pastel, paper white),\n"
-                  f"        press its BUTTON, then press Enter > ")
+            await prompt(f"\n  [{i+1}/8] Place on a DIFFERENT patch (as varied as you\n"
+                         f"        can: saturated primaries, a dark one, a pastel,\n"
+                         f"        paper white), press its BUTTON, then Enter > ")
             await run(link, log, f"rank corpus {i+1}/8", "varied patch")
         try: await c.stop_notify(FFE1)
         except Exception: pass
@@ -152,8 +167,15 @@ async def main():
         print(f"  {k}: {len(set(vals))} distinct value(s) across "
               f"{len(vals)} readings" + ("   <-- ADVANCES, candidate counter"
                                          if len(set(vals)) > 1 else ""))
-    p = ROOT / "captures/raw/EXP-MEAS-005-spot-workflow.json"
-    p.write_text(json.dumps(log, indent=2)); print(f"\nwrote {p}")
+    _save(log); print(f"\nwrote {SAVE}")
 
-try: asyncio.run(main())
-except KeyboardInterrupt: print("\ninterrupted -- partial data not saved")
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    print("\ninterrupted")
+except Exception as e:
+    import traceback
+    print(f"\n!! {type(e).__name__}: {e}")
+    traceback.print_exc()
+    print("\nPaste the lines above to me -- partial data was still saved if any"
+          " readings completed.")

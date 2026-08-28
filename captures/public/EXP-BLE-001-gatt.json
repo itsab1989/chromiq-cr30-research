@@ -1,0 +1,50 @@
+{
+  "experiment": "EXP-BLE-001",
+  "utc": "2026-08-28T14:20:38.360012+00:00",
+  "platform": "darwin",
+  "read_only": true,
+  "gatt": {
+    "pseudonym": "BLE-EE191CCB",
+    "address": "FFB32AD2-D165-6D79-A509-5EA1566707A0",
+    "services": [
+      {
+        "uuid": "0000ffe0-0000-1000-8000-00805f9b34fb",
+        "description": "Vendor specific",
+        "characteristics": [
+          {
+            "uuid": "0000ffe1-0000-1000-8000-00805f9b34fb",
+            "description": "Vendor specific",
+            "properties": [
+              "write",
+              "notify",
+              "write-without-response"
+            ],
+            "value": null
+          },
+          {
+            "uuid": "0000ffe2-0000-1000-8000-00805f9b34fb",
+            "description": "Vendor specific",
+            "properties": [
+              "write",
+              "notify",
+              "write-without-response"
+            ],
+            "value": null
+          },
+          {
+            "uuid": "0000ffe3-0000-1000-8000-00805f9b34fb",
+            "description": "Vendor specific",
+            "properties": [
+              "write",
+              "write-without-response"
+            ],
+            "value": null
+          }
+        ]
+      }
+    ]
+  },
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

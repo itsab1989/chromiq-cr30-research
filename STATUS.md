@@ -84,6 +84,14 @@ to the session-start baseline**. Nothing was written to the device — no
 firmware, no calibration, no parameter. `BB 10` / `BB 11` (the calibration
 writes) were never sent.
 
+## BLE — located, mapped, not talking
+
+Advertises as its own USB device-id · `ffe0` with `ffe1`/`ffe2` (write+notify)
+and `ffe3` (write) · MTU 244 · one connection only · stops advertising when
+taken. **Never answers.** Activation is a handshake the vendor app performs and
+we cannot guess; six variables eliminated, capture is the next step
+(`EXP-BLE-009`). See `TRANSPORT_BLE.md`.
+
 ## Reference implementation
 
 `src/cr30/` — framing, identity, **transport (ABC + serial + replay)**,

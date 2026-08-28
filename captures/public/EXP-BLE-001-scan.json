@@ -1,0 +1,378 @@
+{
+  "experiment": "EXP-BLE-001",
+  "utc": "2026-08-28T14:20:05.572685+00:00",
+  "platform": "darwin",
+  "read_only": true,
+  "scan": [
+    {
+      "pseudonym": "BLE-3A129DA4",
+      "address": "64E023AB-1A97-A4D5-7C6F-CF468ED2BAC7",
+      "name": "65\" Crystal UHD",
+      "rssi": -95,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "117": "420401806628e6a9e2bbd52ae6a9e2bbd4010f6ffd4ac999"
+      },
+      "service_data": {},
+      "candidate": true
+    },
+    {
+      "pseudonym": "BLE-D05E93D8",
+      "address": "DBF78076-8EDB-DAE3-DDA3-4F722D5CD0B4",
+      "name": "",
+      "rssi": -47,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12020003"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-99AEF379",
+      "address": "4E35F127-B8EA-1128-DFAC-494865649F2B",
+      "name": "",
+      "rssi": -55,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "09081304c0a801591b5816080039db28a8d106d5"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-6C06A4EB",
+      "address": "40EF97FB-3EBA-8937-A454-110C6FCE4E16",
+      "name": "iPhone 17 Pro Max",
+      "rssi": -55,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "1007301f7ce577bc38"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-39E1CA26",
+      "address": "0DBA0D80-7C0B-7FD2-FEBD-3E5194260CF4",
+      "name": "",
+      "rssi": -57,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "07110657314aa541d0e09c689a0645273dfc65"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-AFC6DB40",
+      "address": "83679A72-8DD7-F345-CE31-8B47444A5544",
+      "name": "",
+      "rssi": -58,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12021000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-EE191CCB",
+      "address": "FFB32AD2-D165-6D79-A509-5EA1566707A0",
+      "name": "CM454M0223",
+      "rssi": -60,
+      "service_uuids": [
+        "0000ffe0-0000-1000-8000-00805f9b34fb",
+        "0000fee7-0000-1000-8000-00805f9b34fb"
+      ],
+      "manufacturer_data": {
+        "16554": "88a03ca5080d61ba"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-7CFEE567",
+      "address": "4585D36D-0235-2F60-0568-F951D91B8765",
+      "name": "iPad",
+      "rssi": -61,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "1006001d8d02a248"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-86345059",
+      "address": "82F1311C-EC2A-2BF4-B0A3-24773AECC3F9",
+      "name": "",
+      "rssi": -63,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12020000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-9EB7B1C5",
+      "address": "91421463-EDEC-4BF7-FB9C-DF836E0FC5B2",
+      "name": "",
+      "rssi": -64,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "1005261c4a6ca7"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-68CF4E3B",
+      "address": "98E9FE48-57C5-7297-36C6-25C5C30F3064",
+      "name": "",
+      "rssi": -66,
+      "service_uuids": [],
+      "manufacturer_data": {},
+      "service_data": {
+        "0000fcf1-0000-1000-8000-00805f9b34fb": "04af1950ad9522b19548a5632d5389f2b7fa7b5f"
+      },
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-91EEF792",
+      "address": "EB6EC4CC-4C58-6A51-C248-39A4F6DC6F93",
+      "name": "",
+      "rssi": -70,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12022e0007110611bb33397229245f8ebd65d2b77d49b5"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-E7E869F3",
+      "address": "B5C04CE5-0504-7320-3379-19D05F4AE054",
+      "name": "",
+      "rssi": -72,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12020003"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-F1762220",
+      "address": "1DE3B63F-52BF-9EFF-360A-3508D402A1C2",
+      "name": "",
+      "rssi": -75,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "10063c1e2c800fa7"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-B4ECFE74",
+      "address": "DD724FC6-9F9D-7332-790E-F51F6DE338D6",
+      "name": "",
+      "rssi": -75,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12020003"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-C352A716",
+      "address": "983B9790-08FC-92D8-CF4D-8C2D599B1812",
+      "name": "",
+      "rssi": -79,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "10063c1e9515354d"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-A7DCB4DC",
+      "address": "FB47B1B2-FBC8-52C3-9EB3-AF52F44B38B4",
+      "name": "",
+      "rssi": -79,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12025003"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-CD5D7BFC",
+      "address": "7AD7F086-2902-86B0-C9CC-67B059C6E78E",
+      "name": "",
+      "rssi": -79,
+      "service_uuids": [],
+      "manufacturer_data": {},
+      "service_data": {
+        "0000fcf1-0000-1000-8000-00805f9b34fb": "043854481622fccafe9427ec1c9445de92395e79"
+      },
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-CB560522",
+      "address": "AE70063A-A5D0-4BB4-2D64-F1C6B634ABC5",
+      "name": "[TV] Samsung Q60 Series (43)",
+      "rssi": -80,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "117": "420401206e190f0002012b00000000000000000000000000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-8B39971F",
+      "address": "84037C10-6773-0792-FBFC-3FDBE241917A",
+      "name": "[TV] Samsung 7 Series (65)",
+      "rssi": -86,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "117": "4204018066445ce9a3ef4f465ce9a3ef4e01fe0000000000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-294CB4D1",
+      "address": "CE332A69-4CD9-E166-D0E1-FA02A947B200",
+      "name": "LEDnetWF02000851A524",
+      "rssi": -87,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "23040": "6205e498bb51a52400082503010500612301ffffff0003000f0000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-0F2F8BA8",
+      "address": "38BF5F41-D22F-CCBC-6A73-CA8BF0C29F0D",
+      "name": "",
+      "rssi": -89,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "1005461c8c9760"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-D1B6D4B5",
+      "address": "4041FCD4-A424-CC5C-A824-65B552EAA72F",
+      "name": "",
+      "rssi": -91,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "117": "420401806698063cf9513f9a063cf9513e0114af9d990000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-3F3941A2",
+      "address": "ABEDED07-897A-0A84-D53B-763C89F51963",
+      "name": "T_CL2457BD98912",
+      "rssi": -92,
+      "service_uuids": [
+        "0000e0ff-3c17-d293-8e48-14fe2e4da212"
+      ],
+      "manufacturer_data": {},
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-FA1D2B5F",
+      "address": "098BD145-60FF-16B9-3E2C-4A305F6B6CAD",
+      "name": "[LG] webOS TV OLED48C39LA",
+      "rssi": -92,
+      "service_uuids": [
+        "0000feb9-0000-1000-8000-00805f9b34fb"
+      ],
+      "manufacturer_data": {
+        "196": "0834151317fd80"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-06D99BD1",
+      "address": "57005111-5645-EE99-202E-8341381E0266",
+      "name": "",
+      "rssi": -92,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "0c0e004b00d1cf95a37d57f4f19fca7710064e1d9779dd18"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-B52D5E99",
+      "address": "6C3EDB42-2554-54CD-24EC-67D159C25529",
+      "name": "L3250 Series",
+      "rssi": -94,
+      "service_uuids": [
+        "802a0000-4ef4-4e59-b573-2bed4a4ac159"
+      ],
+      "manufacturer_data": {
+        "64": "006d02"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-FC37BC82",
+      "address": "86AB2D6A-117F-5F0A-E3D1-C995613ECF2A",
+      "name": "",
+      "rssi": -94,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "12020000"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-30A5BAA8",
+      "address": "CFEEE7E4-BB52-139E-5D62-81DFCAF13FA5",
+      "name": "",
+      "rssi": -95,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "10052b18e49036"
+      },
+      "service_data": {},
+      "candidate": false
+    },
+    {
+      "pseudonym": "BLE-61E1DDBD",
+      "address": "591519C0-90A3-2A48-2022-5C717ECF38E5",
+      "name": "",
+      "rssi": -95,
+      "service_uuids": [],
+      "manufacturer_data": {
+        "76": "1007361f5ff6054318"
+      },
+      "service_data": {},
+      "candidate": false
+    }
+  ],
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

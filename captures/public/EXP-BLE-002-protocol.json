@@ -1,0 +1,41 @@
+{
+  "experiment": "EXP-BLE-002",
+  "utc": "2026-08-28T14:21:19.682013+00:00",
+  "pseudonym": "BLE-EE191CCB",
+  "address": "FFB32AD2-D165-6D79-A509-5EA1566707A0",
+  "probes": [
+    {
+      "subcmd": 0,
+      "tx": "aa0a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb3",
+      "rx_len": 0,
+      "rx": "",
+      "notify_chunks": []
+    },
+    {
+      "subcmd": 1,
+      "tx": "aa0a0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb4",
+      "rx_len": 0,
+      "rx": "",
+      "notify_chunks": []
+    },
+    {
+      "subcmd": 2,
+      "tx": "aa0a0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb5",
+      "rx_len": 0,
+      "rx": "",
+      "notify_chunks": []
+    },
+    {
+      "subcmd": 3,
+      "tx": "aa0a0300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffb6",
+      "rx_len": 0,
+      "rx": "",
+      "notify_chunks": []
+    }
+  ],
+  "mtu": 244,
+  "verdict": "NO 60-byte reply on ffe1. BLE either uses a different framing, a different characteristic, or needs pairing.",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

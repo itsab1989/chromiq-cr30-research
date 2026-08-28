@@ -1,0 +1,67 @@
+{
+  "experiment": "EXP-BLE-003",
+  "utc": "2026-08-28T14:24:47.712372+00:00",
+  "note": "sweep write channel x write mode; identity command only",
+  "trials": [
+    {
+      "char": "ffe1",
+      "response": false,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    },
+    {
+      "char": "ffe1",
+      "response": true,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    },
+    {
+      "char": "ffe2",
+      "response": false,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    },
+    {
+      "char": "ffe2",
+      "response": true,
+      "error": "BleakGATTProtocolError: (14, 'GATT Protocol Error: Unlikely Error')",
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    },
+    {
+      "char": "ffe3",
+      "response": false,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    },
+    {
+      "char": "ffe3",
+      "response": true,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false,
+      "chunks": []
+    }
+  ],
+  "passive_bytes": 0,
+  "passive": "",
+  "verdict": "NO channel/mode produced a CR30 frame",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

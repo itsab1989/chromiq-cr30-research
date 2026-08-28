@@ -1,0 +1,146 @@
+{
+  "experiment": "EXP-BLE-006",
+  "utc": "2026-08-28T14:28:47.309993+00:00",
+  "note": "identity command only; sweeping write chunk size x channel",
+  "trials": [
+    {
+      "char": "ffe1",
+      "strategy": "single 60",
+      "chunk": 60,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe1",
+      "strategy": "3 x 20",
+      "chunk": 20,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe1",
+      "strategy": "4 x 15",
+      "chunk": 15,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe1",
+      "strategy": "2 x 30",
+      "chunk": 30,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe1",
+      "strategy": "6 x 10",
+      "chunk": 10,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe2",
+      "strategy": "single 60",
+      "chunk": 60,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe2",
+      "strategy": "3 x 20",
+      "chunk": 20,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe2",
+      "strategy": "4 x 15",
+      "chunk": 15,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe2",
+      "strategy": "2 x 30",
+      "chunk": 30,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe2",
+      "strategy": "6 x 10",
+      "chunk": 10,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe3",
+      "strategy": "single 60",
+      "chunk": 60,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe3",
+      "strategy": "3 x 20",
+      "chunk": 20,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe3",
+      "strategy": "4 x 15",
+      "chunk": 15,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe3",
+      "strategy": "2 x 30",
+      "chunk": 30,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    },
+    {
+      "char": "ffe3",
+      "strategy": "6 x 10",
+      "chunk": 10,
+      "error": null,
+      "rx_len": 0,
+      "rx": "",
+      "frame_ok": false
+    }
+  ],
+  "verdict": "still silent under every chunk size on every channel",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

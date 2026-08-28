@@ -76,6 +76,39 @@ packets is **not supported** on present evidence. It is not yet *disproven*
 either — see below. This is exactly why the standing rule is that it must be
 proved, not assumed.
 
+## Bounded negative: BLE cannot be activated by guessing — CONCLUDED
+
+`EXP-BLE-008`: the device was resolved while free, the operator connected the
+vendor app until the indicator lit, then disconnected it. **We reconnected 0.91 s
+later** and polled the identity query 39 times over 40 s.
+
+**Zero replies. The indicator never lit.** Activation ends with the app's
+connection; there is no grace window to slip into.
+
+### What has been eliminated
+
+| Variable | Values tried | Result |
+|---|---|---|
+| Characteristic | `ffe1`, `ffe2`, `ffe3` | all silent |
+| Write mode | with / without response | all silent |
+| Write chunking | 60, 3×20, 4×15, 2×30, 6×10 | all silent |
+| USB present | connected / unplugged, on battery | all silent |
+| Direction | host-initiated write / passive listen | all silent |
+| Timing | immediately after the app released the device | silent |
+
+⚠ **Most of these were run while the device's Bluetooth was asleep**, so they
+are *untested*, not disproven. `EXP-BLE-008` is the exception: it ran 0.91 s
+after a confirmed-lit indicator, and is the one honest negative in the set.
+
+### Why guessing has to stop here
+
+Activation is **one second of traffic between the phone and the device**, and
+every attempt above tries to infer its contents from outside. That is the wrong
+instrument for the question. Six hypotheses have been generated and none was
+testable without seeing what the app actually sends.
+
+**Next step is capture, not another hypothesis** — see `EXP-BLE-009` below.
+
 ## The untested variable, and it is the obvious one
 
 **The device was connected to USB throughout.** Devices of this class commonly
@@ -134,3 +167,39 @@ move the experiment to the macOS host and record the transition.
 
 The device's Bluetooth address is a unique identifier. It goes in
 `LOCAL_DEVICE_IDS.md` (gitignored), never into a committed document.
+
+
+---
+
+## EXP-BLE-009 — capture the activation handshake · SPECIFIED, NOT RUN
+
+**The only remaining question is: what does the vendor app send in the second
+between connecting and the indicator lighting?**
+
+Everything else about BLE is known: the device advertises as its own USB
+device-id, exposes `ffe0`/`ffe1`-`ffe3` as a write+notify transport, negotiates a
+244-byte MTU, accepts one connection at a time, and stops advertising when taken.
+
+### Method
+
+Apple's **PacketLogger** (in *Additional Tools for Xcode*) records Bluetooth HCI
+from a USB-attached iOS device. It is Apple's supported route and needs no
+jailbreak and no sniffer hardware. Neither PacketLogger nor Xcode is installed on
+this Mac (checked 2026-08-28).
+
+Alternatives, if that route is unavailable:
+
+| Route | Needs | Notes |
+|---|---|---|
+| Android HCI snoop log | an Android phone + the vendor app | Developer options → *Enable Bluetooth HCI snoop log*; simplest if an Android device exists |
+| nRF52840 dongle + Wireshark | ~£10 hardware | Sniffs over the air; independent of both phones |
+| macOS PacketLogger, Mac as central | already possible | Captures **our** traffic only — useless here, since our traffic is what fails |
+
+### What to extract
+
+The frames the app writes between connect and the indicator lighting: which
+characteristic, how many bytes, whether they are 60-byte CR30 frames at all, and
+whether the device replies before the indicator lights. That sequence is the
+activation handshake, and with it the rest of the BLE work is mechanical —
+`src/cr30/transport.py` already abstracts transports, so a working BLE transport
+is a small addition once activation is known.

@@ -1,0 +1,12 @@
+{
+  "experiment": "EXP-BLE-008",
+  "utc": "2026-08-28T14:39:13.216809+00:00",
+  "events": [],
+  "writes": 39,
+  "connect_latency_s": 0.91,
+  "verdict": "silent even immediately after the app let go",
+  "indicator_during_run": "n",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

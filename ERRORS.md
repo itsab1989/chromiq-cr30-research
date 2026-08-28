@@ -128,3 +128,33 @@ no port reopen (`EXP-USB-005b`).
 `EXP-USB-006`. A reply is the request buffer mutated in place. Before calling
 any offset a device field, **check what the request had there**. A decoder
 tested only with all-zero requests cannot tell a device zero from its own.
+
+
+---
+
+## Session 3 — defects filed by `[CR30-SKEPTIC]`, 2026-08-28
+
+Each has a regression test built from a real capture. Numbered for the record so
+they cannot quietly disappear.
+
+| # | Defect | Where | State |
+|---|---|---|---|
+| 5 | `read_stored()` **assumed the spectral axis** (400/31/10) and never fetched the header — the exact thing this file's own "Robustness requirements" forbids by name | `usb_measure.py` | **FIXED** — takes `button_header`, reads the axis from it, refuses an unknown axis; records `axis_source` when none is supplied |
+| 6 | The unsolicited button header's **offset-24 magnet flag was discarded**, though it is the only unit-independent magnet check and the only one that works on the first reading | `usb_measure.py`, `measurement.py` | **FIXED** — `button_header_is_gated()`, `Measurement.gate_flag`, checked first in `check_usable()` |
+| 7 | The magnet error message told the user to **"read again"** after an event that may have destroyed their white reference | `measurement.py` | **FIXED** — now STOP + RECALIBRATE, with the reason |
+| 8 | The **D50 illuminant table was wrong from 610 nm**; its last five entries were D65's 600–640 nm values, copied in. Error 13.4 units (13 %) at 670 nm | `colour.py` | **FIXED**, with a mutation test |
+| 9 | `validate_illuminants()` **passed that table** at `tol=0.006` (it scored 1.5e-3 where a correct table scores ~1e-4). A control that cannot fail is not a control | `colour.py` | **FIXED** — `tol=0.001`, and `tests/test_colour_tables.py` proves the mutation lands |
+| 10 | `colour.py`'s docstring said the observer was **CIE 1931 2°** while the code selected **10°** | `colour.py` | **FIXED**, and 10° is now proved rather than asserted |
+| 11 | **The test suite did not run at all on a fresh clone.** Three modules read `captures/raw/`, which is gitignored; `pytest` aborted at collection with `FileNotFoundError` and executed **zero** tests | `tests/` | **FIXED** — fall back to the redacted public copies; 455 pass on a public-only tree |
+| 12 | `TILE_SIGNATURE` is a **per-unit factory constant** hard-coded with a 0.05 tolerance; the only other CR30 we have data for differs by 4.69 %R | `measurement.py` | **DOCUMENTED, not fixed** — needs a per-unit learn step, which is a design decision |
+| 13 | The **reflectance bounds accept a real corrupted reading** (105.47 %R) and cannot see the deflating half of the failure at all | `measurement.py` | **DOCUMENTED, not fixed** — deliberately: retuning a one-sided test does not make it two-sided |
+| 14 | The **BLE reply has no integrity check** — no checksum, no length equality, `find()` takes the first header in the buffer — and the vendor capture contains a truncated zero-filled reply that passes all of it | `ble.py`, `device.py` | **OPEN — `[CR30-USB]`.** Four concrete fixes in `TRANSPORT_BLE.md` |
+| 15 | `LAB_AT`/`MIN_REPLY` are hard-coded for 31 bands while the spectrum uses the device-declared count | `ble.py` | **OPEN** |
+| 16 | `Measurement.validate()` accepts a device `L*a*b*` of exactly `(0,0,0)` and a spectrum with trailing exact zeros | `measurement.py` | **OPEN** |
+| 17 | `metadata["warning"]` is set by `validate()` and **no caller ever reads it** | `measurement.py`, `device.py` | **OPEN** |
+
+⚠ Defects 12 and 13 are left open **on purpose**. Both are threshold/behaviour
+questions that change what the library refuses, and `CLAUDE.md`'s standing
+practice is that a fault which contradicts a documented decision is reported and
+approved, not silently corrected. The evidence for both is in
+`MEASUREMENT.md` and pinned in `tests/test_skeptic_guard_gaps.py`.

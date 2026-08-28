@@ -374,3 +374,137 @@ removes ~8 s of pointless probing from every measurement start.
 | `TARGET_INSTRUMENT` rejects unknown names outright | **CONFIRMED, and there are three gates**, not one (§1) |
 | `EXTERNAL_INSTRUMENTS` is precedent for a device Argyll cannot drive | **CONFIRMED**, and `scanin` is a second one |
 | instrument selection identifies the device | **DISPROVEN** — `MeasureParams.instrument` is a comm-port number (§1) |
+
+
+---
+
+# 🔴 SELF-REVIEW OF §6 — `[CR30-SKEPTIC]`, 2026-08-28
+
+I wrote §1–§10 earlier the same day. Re-reading them against ChromIQ at
+`f7ecc7f4` with the specific question *"does a live spot-reading device map onto
+this?"*, I found one **material omission** that changes the recommendation, plus
+three defects worth naming. §6's conclusion survives, but only for the case it
+was actually arguing about.
+
+## ⚠ The omission: ChromIQ already has a complete spot-reading stack
+
+§3 says *"two paths already supply a value from outside Argyll"* and lists `-x l`
+and the replay instrument. **It misses the one that matters**, which is not a
+path into `chartread` at all:
+
+| Component | Path | Size |
+|---|---|---|
+| `SpotReadDialog(QDialog)` | `ui/dialogs/spot_read_dialog.py:87` (launched `ui/dialogs/tools_dialogs.py:2323`) | a working UI |
+| `SpotReadManager(QObject)` | `workflow/spot_read_manager.py:71` | ~220 lines |
+| `SpotReading`, `write_ti3`, `average_readings` | `workflow/spot_read_io.py:25`, `:137`, `:75` | the I/O |
+
+`SpotReadManager` exposes **fourteen signals and six methods** and touches
+`ArgyllRunner` in only five places (`run`, `write_stdin`, `abort`,
+`forget_run_callbacks`, `is_running`):
+
+```
+reading_ready(tuple, tuple)   # (xyz, lab)      ready_to_read()
+instrument_detected(str)      calibration_prompt() / calibration_finished()
+calibration_position_wrong()  misread()          sensor_wrong_position()
+no_instrument()               device_busy()      instrument_disconnected()
+coms_init_failed(str)         inst_init_failed(str)   session_ended(int)
+```
+
+**A `CR30SpotManager` with those same signal names drops into `SpotReadDialog`
+with a constructor swap.** That is a far smaller and far more honest seam for a
+*live handheld spot reader* than anything in §3, and §6 did not weigh it.
+
+`workflow/spot_read_manager.py:50-54` even records the same discovery §1 makes,
+in ChromIQ's own words: *"`-c 1` selects the COMMUNICATION PORT, not the
+instrument, so ChromIQ never actually knew which device was attached."*
+
+**Revised recommendation, and it is now two answers rather than one:**
+
+| Goal | Seam | Why |
+|---|---|---|
+| **Read a printer chart** (the profiling job) | **§6 unchanged** — `.ti3` import + `EXTERNAL_INSTRUMENTS` | 400 patches of hand-placed spot reads is an import, not a guided read; nothing about `chartread` helps |
+| **Read individual colours** (the Tools job) | **`SpotReadManager`'s signal surface** | it is a live spot device and this is a live spot UI; ~220 lines, no C, no Argyll |
+
+These do not compete. The second is the smaller change and it is the one that
+matches what a CR30 *is*.
+
+## Defect A — `.ti3` spectra are dropped SILENTLY, not rejected
+
+§4 says the band grid is inferred from the file, which is right and remains the
+single most important fact here. What it does not say is the failure mode.
+`workflow/ti3_analysis.py:174-185`:
+
+```python
+if len(spec_i) >= 3 and "SPECTRAL_BANDS" in keywords:
+    try:
+        bands = int(keywords["SPECTRAL_BANDS"]); …
+        if len(spec_i) == bands:
+            spectral = …
+    except (ValueError, KeyError):
+        spectral = wavelengths = None
+```
+
+An off-by-one between `SPECTRAL_BANDS` and the number of `SPEC_*` columns, or a
+missing `SPECTRAL_START_NM`, and the spectra vanish **with no error and no log
+line** — the `.ti3` parses, the profile builds, and the entire value of the
+instrument is gone. A CR30 writer must therefore **verify its own output by
+re-parsing it** and asserting `Ti3Data.spectral is not None`, because ChromIQ
+will not tell it.
+
+Also note `ti3_analysis.py:155-159` **hard-requires `RGB_R/G/B`**. That is fine
+for a chart read and fatal for a device-less spot set — and
+`workflow/spot_read_io.py:137` writes exactly such a file (XYZ only, via
+`colverify_runner.write_reference_ti3`, `:162`). ChromIQ cannot re-read its own
+spot `.ti3`. Not our bug; worth knowing before designing around either file.
+
+## Defect B — `ArgyllRunner.is_running` cannot see a Python backend
+
+`core/argyll_runner.py:539-546` answers "is something measuring?" purely from
+`QProcess`/`Popen` state. Dozens of guards depend on it — e.g. the measurement
+importer at `ui/tabs/tab_measure.py:8317`.
+
+**A pure-Python CR30 backend spawns no process, so it is invisible to every one
+of those guards**, and nothing stops a chart read starting while it holds the
+port. §5's serial-scan hazard (§8) is the same problem seen from the other side.
+Any live backend must be registered with whatever answers that question — and
+today the only thing that answers it is `is_running`. Name this in the design
+before writing code, not after.
+
+## Defect C — §6 understates the trigger rule
+
+§6's `Measurement` surface lists `measure()`. **It must not.** `CALIBRATION.md`
+§2: the host cannot see the magnet, so "do not trigger with a magnet present" is
+a rule no program can evaluate. The correct integration rule is absolute:
+
+> **A ChromIQ CR30 backend never sends `BB 01 00`.** The operator's button press
+> is the trigger; `usb_measure.read_stored()` collects. `EXP-MEAS-005` ran
+> fifteen readings that way with zero rejections.
+
+`CR30.trigger()` (`src/cr30/device.py:74`) must not be part of the integration
+surface. The `identify / calibrate_black / calibrate_white / measure` sketch in
+§6 should read `identify / await_reading / read_stored`, and
+`calibrate_black()` should not appear either — **this unit has no black tile and
+`BB 10` has never been sent to it** (`CALIBRATION.md`).
+
+## What ChromIQ must be told about the data, in `INTEGRATION.md` terms
+
+Three statements belong in any CR30 `.ti3` writer's provenance keywords, because
+each is a limit a user cannot otherwise see:
+
+1. **Spectral independence is CORROBORATED, not VERIFIED** (already in §6).
+2. **The reflectance bounds are a coarse backstop, not a calibration check.** A
+   corrupted white reference deflates readings undetectably, and a real
+   corrupted reading in our own corpus peaks at 105.47 %R and passes every guard
+   (`MEASUREMENT.md`, Hole 4). ChromIQ cannot tell a well-calibrated CR30 from a
+   badly-calibrated one, and neither can we.
+3. **Magnet detection is unit-specific unless the button header is read.**
+   `TILE_SIGNATURE` is one unit's factory constant and is inert on the only other
+   CR30 we have data for. On USB, frame offset 24 of the unsolicited button
+   header is the unit-independent check. **Over BLE there is none.**
+
+## Bottom line on readiness
+
+§6's `.ti3` seam is still the right first step for chart reading, and it is
+still true that **nothing should be implemented in ChromIQ before `EXP-SPEC-001a`
+runs**. I would add three more blockers of my own; see the issue #1 comment of
+2026-08-28.

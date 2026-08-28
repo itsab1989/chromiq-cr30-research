@@ -157,3 +157,126 @@ macOS either.
 
 ⚠ The device stops advertising while a central holds it, so the phone app and
 ChromIQ cannot both be connected.
+
+
+---
+
+# 🔴 ADVERSARIAL REVIEW — `[CR30-SKEPTIC]`, 2026-08-28
+
+Everything above rests on **one ~30-second vendor PacketLogger trace**
+(`EXP-BLE-009`) plus our own client's replies. That is a small base, and this
+section says exactly which claims it can carry. All of it is pinned in
+`tests/test_ble_claims_under_attack.py`.
+
+## Scale, first
+
+The **entire BLE frame corpus is five distinct 10-byte frames.** USB needed 260
+before its checksum rule was uniquely determined, and four frames left fifteen
+candidates. Every claim below should be read against that number.
+
+## SURVIVES — the poll byte, and the spectrum offset
+
+- **`0x01` polls.** VERIFIED by our own working client, then exercised over 15
+  readings in `EXP-MEAS-005`. This is the strongest BLE result and it is not in
+  doubt.
+- **Spectrum at offset 8, 31 × float32 LE.** Two vendor replies plus our own,
+  cross-validating against the USB decode to 4.7 × 10⁻⁷. CORROBORATED.
+- **`bb 14` echoes app-supplied data.** UPGRADED, see `MEASUREMENT.md`: the
+  vendor's non-zero payload and our zero payload undergo the *same*
+  transformation, which is the mutation landing. `bb 14` reports nothing.
+
+## WEAKENED — "the same checksum rule generalised" is 1 of 4, not 1
+
+Enumerating contiguous additive rules `sum[i:j] + c` over the whole five-frame
+corpus leaves **four** survivors, not one:
+
+```
+sum[0:8] + 0xff      <- arithmetically itohio's 0xBB branch
+sum[0:9] + 0x00      <- the rule this document and src/cr30/ble.py assert
+sum[1:8] + 0xba
+sum[1:9] + 0xbb
+```
+
+The confounds are the same two that trapped session 1 on USB: **byte 0 is `0xbb`
+in every frame** and **byte 8 is `0xff` in every frame**, so start-of-range and
+marker-inclusion both trade against the constant. On USB the tie was broken only
+by the `BB 01 09` headers carrying marker `0x00`; **no BLE frame with a marker
+other than `0xFF` has ever been seen**, so the discriminating case does not
+exist here.
+
+Calling this *"a genuine unification"* and *"further confirmation that the USB
+rule is correct"* assumes the answer. **Downgrade to PROBABLE by analogy.**
+Practically the risk is latent — nothing verifies a received BLE frame's
+checksum at all today — but if it is ever added and the device does emit a
+marker-`0x00` frame, three of these four rules reject it.
+
+## DISPROVEN — the "0x7FFF0000 terminator"
+
+| | bytes 196..200 |
+|---|---|
+| our unit (`EXP-BLE-010`) | `00 00 ff 7f` — float32 LE NaN |
+| **vendor unit, both replies** (`EXP-BLE-009`) | **`00 00 00 00`** |
+
+It is not a constant and it is not a terminator. An implementation that
+validated a reply with it would reject every reply from the vendor's unit.
+`src/cr30/ble.py` does not use it — the *document* was wrong, not the code.
+
+## 🔴 NEW HAZARD — a truncated reply, zero-filled, that passes every check
+
+The vendor's 410-byte notification stream is **not** "one 200-byte
+notification". It is:
+
+```
+110 bytes  a TRUNCATED bb 02 10 reply: bands 0-24 intact,
+             band 25 half-written (2 bytes), then nothing
+ 90 bytes  zero fill
+200 bytes  a complete reply -- same spectrum, L*a*b* = 91.6424 / -0.7779 / +1.3622
+ 10 bytes  the bb 14 echo
+```
+
+*Reconstruction caveat, because it matters:* this is a concatenation of two
+PacketLogger records (241 + 169 bytes). A **lost** record would also explain
+zeros — but it would misalign everything after it, and the second reply parses
+byte-perfectly at offset 200 while the arithmetic closes exactly at
+110 + 90 + 200 + 10 = 410. Alignment is the control, and it holds.
+
+**What the shipped code does with those bytes** (`tests/test_ble_claims_under_attack.py`):
+
+- `device.py:105` does `raw.find(MEASUREMENT_HDR)` and takes the **first** hit —
+  which is the truncated reply.
+- `device.py:109` requires only 196 bytes after it. 200 are available. Passes.
+- There is **no checksum over the 200-byte reply, no length equality, no
+  terminator check**. `_drain()` is a 0.4 s timing heuristic, not a guarantee —
+  and its own docstring records that its absence "silently produced fifteen
+  garbage readings".
+- `Measurement.check_usable()` then **accepts** the result: five bands of
+  exactly `0.0 %R` are finite and inside `[-1, 130]`, and a device `L* = 0.0`
+  satisfies `0.0 <= L* <= 100.0`.
+
+So a BLE backend can return a measurement whose last five bands are zero and
+whose Lab is pure black, for a sample that is in fact a 91.6 L\* white — with no
+error. This is precisely the pattern `CLAUDE.md` §14 forbids.
+
+**Requested actions for `[CR30-USB]`, in order of value:**
+
+1. Reject a reply whose device L\*a\*b\* is exactly `(0, 0, 0)`. Free, and it
+   catches this case outright.
+2. Reject trailing exact zeros in the spectrum. A real reflectance band is never
+   exactly `0.0` — the air control read 0.002 %, not 0.
+3. Scan for the header from the **end** of the buffer, or require exactly one
+   occurrence, rather than taking `find()`'s first hit.
+4. Require the reply length to be exactly 200 for a 31-band axis, not `>= 196`.
+
+## Also open, and not currently acknowledged
+
+- **`LAB_AT = 184` and `MIN_REPLY = 196` are hard-coded for 31 bands** while the
+  spectrum is unpacked using the device-declared `axis.bands`. If the device
+  ever declares a different count the two overlap silently. Derive both from the
+  axis, or assert the axis.
+- **Only one command has ever produced a bulk reply.** The offsets are `bb 02
+  10`'s. Nothing is known about the layout of any other command's reply, and
+  `device.py` would unpack floats out of whatever it found.
+- **The vendor session is ~30 s and starts at connection.** It contains no
+  calibration, no trigger, no `bb 13`. "The commands seen in the vendor session"
+  is not the BLE command set.
+- **No BLE host trigger is known**, which is fortunate — see `CALIBRATION.md` §2.

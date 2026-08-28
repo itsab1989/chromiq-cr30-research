@@ -97,3 +97,43 @@ cd ~/develop/chromiq-cr30-research
 python3 -m venv .venv && .venv/bin/pip install pyserial bleak pytest
 .venv/bin/python -m pytest tests/ -q        # 406 pass, no hardware needed
 ```
+
+
+---
+
+## Session 3 addendum — `[CR30-SKEPTIC]`, 2026-08-28 (desk work, no lease taken)
+
+**Read `STATUS.md`'s "Session 3" table first** — eight claims were overturned or
+weakened and three defects are still open.
+
+### The three things that must not be lost
+
+1. **`TILE_SIGNATURE` is one unit's factory constant.** The magnet defence does
+   not work on anybody else's CR30. `MEASUREMENT.md` Hole 1.
+2. **The reflectance bounds accept a real corrupted reading** (105.47 %R) and are
+   blind to the deflating half of the failure entirely. `MEASUREMENT.md` Hole 4.
+   Deliberately NOT retuned — retuning a one-sided test does not fix it.
+3. **A ChromIQ backend must never send `BB 01 00`.** "Don't trigger near a
+   magnet" is a rule software cannot evaluate, because the host cannot see the
+   magnet. The button-press workflow needs no trigger and is already proven.
+
+### Next experiments, revised order
+
+1. **`EXP-MEAS-004`** — which command writes the calibration. Still the dangerous
+   one, still needed. **But first run the free half of it:** measure seating
+   repeatability (calibrate twice without disturbing the cap, then twice
+   re-seating between). That alone may settle the attribution from
+   `EXP-MEAS-002`'s existing data. `CALIBRATION.md` §1.
+2. **Replicate the offset-24 button flag on a second magnet position**, and on a
+   second unit if one is ever available. Cheapest high-value experiment
+   outstanding: it converts the only unit-independent magnet check from
+   CORROBORATED to VERIFIED.
+3. **`EXP-MEAS-006`** — what a fluorescing OBA paper really reads. Decides
+   whether 110/130 are usable numbers. No hardware risk. `EXPERIMENTS.md`.
+4. **`EXP-SPEC-001a`** — unchanged, and still the thing that could overturn the
+   whole `.ti3` seam.
+
+### Not done, and it should be
+
+`EXPERIMENTS.md` has **no entry for twelve experiments that ran**, including both
+magnet experiments and all of BLE. See the note appended there.

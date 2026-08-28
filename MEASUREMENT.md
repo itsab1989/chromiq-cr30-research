@@ -526,3 +526,191 @@ bit-identical every time. So a backend can:
 
 which covers both failure modes. A counter would be cleaner; these two checks
 are sufficient.
+
+
+---
+
+# 🔴 ADVERSARIAL REVIEW OF THE MAGNET DEFENCES — `[CR30-SKEPTIC]`, 2026-08-28
+
+`src/cr30/measurement.py` defends the shipping-critical hazard with two
+behavioural checks and two physical bounds. I attacked all four with the
+repository's own captures. **Three of the four have a demonstrated hole**, every
+one of them reproduced in `tests/test_skeptic_guard_gaps.py` from bytes already
+in `captures/public/`.
+
+## Hole 1 — `TILE_SIGNATURE` is inert on any other CR30 · CORROBORATED
+
+`looks_like_calibration_tile()` compares against 31 hard-coded floats with an
+**absolute tolerance of 0.05 %R**. Those floats are *this unit's* factory tile
+constant.
+
+The vendor corpus contains a second CR30's white reference, read immediately
+after its own `BB 11` white calibration
+(`PRIORART-001`, "Calibrate White and Black and Test Target" — and byte-identical
+again in "Test Sample white", two separate sessions):
+
+| | mean %R | min | max | range |
+|---|---|---|---|---|
+| our `TILE_SIGNATURE` | 78.93 | 70.39 | 80.74 | 10.34 |
+| **the second unit** | **76.70** | **69.13** | **78.67** | **9.54** |
+
+Same shape — flat, with the 400 nm rolloff — different numbers. Worst band
+difference **4.69 %R**, band ratio **0.9703 ± 0.0161** (not a scalar: the shape
+differs too, as two ceramic tiles do), ΔE₇₆ **1.73**.
+
+**4.69 is 94× the tolerance.** On that unit the check returns `False` for every
+gated reading and the magnet defence silently degrades to `identical_to` alone.
+Nothing logs that it has stopped working.
+
+Widening the tolerance is not the fix: 4.69 %R would start swallowing real
+patches. The fix is to **learn the constant per unit** — capture it once,
+deliberately, during a calibration step, and store it with the device id. Until
+then the check must be documented as *this unit only*.
+
+## Hole 2 — intermittent gating defeats `identical_to` · VERIFIED by construction
+
+`identical_to` compares against the **immediately preceding** reading only, and
+the hall sensor is **positional**, not sticky (operator, 2026-08-28: *"it does
+not always show the values for the white tile… the magnet must be in the correct
+position"*). Interleave them —
+
+```
+patch 1 real → patch 2 GATED → patch 3 real → patch 4 GATED → …
+```
+
+— and no gated reading is ever adjacent to another gated reading, so the check
+never fires. Only `looks_like_calibration_tile()` stands, and Hole 1 removes that
+on any unit but ours.
+
+Worse, this is not merely two bad readings. **Each gated event performs a white
+calibration against the patch under the aperture**, so patch 3 — a "real"
+reading — is measured against a white reference that patch 2 just overwrote.
+One intermittent magnet corrupts the *entire remainder of the chart*.
+
+`device.py` also does not record a **rejected** reading as `_previous`
+(`:100-103`: `check_usable` raises before `self._previous = m`). Conservative in
+the all-gated case, irrelevant in the interleaved one.
+
+## Hole 3 — the first reading of a run is unguarded by `identical_to`
+
+`identical_to(None)` is `False` by construction. On a unit where Hole 1 applies,
+**reading 1 of a fully gated run is accepted outright.**
+
+## Hole 4 — the physical bounds are one-sided, and a real corrupted reading passes
+
+`MAX_REFLECTANCE = 130` was calibrated against **one** number: paper at 156.8 %
+mean / 193.8 % peak, from the `EXP-CAL-002` first run whose capture was
+overwritten. That number is the outlier, and a milder corrupted reading survives
+in this repository and **passes every check**:
+
+> `EXP-MEAS-003`'s `patch_after` — the same patch re-measured seconds after the
+> white reference was overwritten with green, in the experiment that overwrote
+> it. Band-by-band **1.96× ± 0.38** the healthy reading, spectrally shaped, five
+> bands over 100 %, **peak 105.47 %R**.
+>
+> 105.47 < 110 < 130. `check_usable()` **ACCEPTS it and does not even set the
+> metadata warning.**
+
+And the guard is one-sided where the failure is two-sided:
+
+- calibrating against a surface **darker** than the tile inflates later readings
+  → sometimes catchable;
+- calibrating against a surface **brighter** than the tile **deflates** them →
+  **never catchable, by anything in this module.**
+
+The realistic accident during a chart read is gating on the chart's own near-white
+patch. Paper reads ~85.8 %R mean against the tile's nominal ~78.9 %R, so every
+subsequent reading comes back **~8 % dark, permanently, with no symptom at all**.
+
+Even on the catchable side the bound only bites when the sample is already
+bright: a corruption factor below 130/96.4 = **1.35** never breaches MAX on
+paper, and on the dark patches that make up most of a chart, no factor ever does.
+
+**Recommendation: do NOT retune 110/130.** Retuning a one-sided test does not
+make it two-sided. State the limitation in `INTEGRATION.md` and add a real
+calibration check (re-measure a known reference), which is what `EXP-CAL-002`
+already does by hand. Whether a fluorescing OBA paper could legitimately reach
+130 %R on this device is **UNKNOWN** and depends on the UV content of the CR30's
+illuminant, which nobody has measured — `EXP-MEAS-006` in `EXPERIMENTS.md`.
+
+## The fix that was available all along: offset 24, on the BUTTON header
+
+This document concluded that offset 24 is *"useless for the case that matters"*.
+That was true of the **host-triggered** path it was arguing about. **The workflow
+this project now recommends is the button path, and there the flag works**:
+
+| header | offset 24 | n |
+|---|---|---|
+| button press, magnet engaged (`EXP-MEAS-002`, `EXP-MEAS-003`) | **`0x01`** | 2/2 |
+| button press, no magnet (`EXP-MEAS-001`) | `0x00` | 1/1 |
+| host-triggered, gated or not, all three sessions | `0x00` | 20+/20+ |
+
+Perfect discrimination on every button frame captured. And unlike both
+behavioural checks it is **unit-independent**, it works on the **first** reading
+of a run, and it is **immune to intermittent gating** — it is a protocol field,
+not an inference from the spectrum.
+
+Implemented: `usb_measure.button_header_is_gated()` and
+`usb_measure.wait_for_button_header()`; `Measurement.gate_flag`; checked first in
+`check_usable()`. It returns `None` — *cannot tell* — for a host-triggered
+header, which a caller must never read as *safe*.
+
+**CORROBORATED, not VERIFIED: three button frames on one unit.** It is an
+*additional* check, never a replacement. Replication is the cheapest high-value
+hardware experiment outstanding.
+
+⚠ **Over BLE there is no equivalent.** The device's BLE button announcement is a
+10-byte frame with no room for it, and the BLE read path is a poll. **BLE spot
+reading has no protocol-level magnet detection at all** — which is a real
+argument for preferring USB in a shipping backend, and cuts against the
+enthusiasm in `STATUS.md`.
+
+## The error message was giving dangerous advice
+
+The old text — *"the CR30 returns this constant instead of measuring. Remove the
+cap or any magnet and read again"* — restates the reading this file's own
+`EXP-MEAS-003` section and `CALIBRATION.md` **superseded**. The device does not
+return a constant instead of measuring; it performs a **white calibration**. By
+the time the error fires, the stored white reference may already be wrong, and
+"read again" then produces readings that are wrong by a scale factor no guard
+here can detect (Hole 4). The message now says STOP and RECALIBRATE.
+
+## Correction: `bb 14` is settled, and this document's rebuttal was wrong
+
+§EXP-MEAS-005 says our all-zero `bb 14` probe proves nothing because *"we sent a
+zero payload… a constant echo means our call was malformed"*. That rebuttal is
+**DISPROVEN by two captures that were already here**:
+
+| direction | frame |
+|---|---|
+| vendor app → device | `bb 14 08 **a0 91 6a 01 00** ff 72` |
+| device → vendor app | `bb 14 00 **a0 91 6a 01 00** ff 6a` |
+| our probe → device | `bb 14 08 **00 00 00 00 00** ff …` |
+| device → our probe | `bb 14 00 **00 00 00 00 00** ff ce` |
+
+Two different payloads, the same transformation: **the caller's own field comes
+straight back with only the sub-command byte cleared.** That is the mutation
+landing. `bb 14`'s reply carries no device data, so it is not a counter and not a
+timestamp source. `EXP-BLE-011` (now published) confirms it on our unit with the
+vendor's exact payload. Whatever `bb 14` does, it does not report anything.
+
+## Correction: D65/10° is settled by arithmetic after all
+
+This document says the ΔE comparison *"does NOT discriminate 2° from 10°"* and
+defers to the screen label. True of the near-neutral tile it was computed on —
+the worst possible sample for separating observers. The vendor corpus contains a
+**saturated cyan** with the vendor application's own L\*a\*b\* in the file name,
+measured on a second unit:
+
+| | L\* | a\* | b\* | ΔE₇₆ vs the vendor's own numbers |
+|---|---|---|---|---|
+| vendor's label `36.61 −20.75 −2.86` | — | — | — | — |
+| **our decode, D65/10°** | **36.612** | **−20.732** | **−2.847** | **0.022** |
+| D65/2° | 36.154 | −20.448 | −4.302 | 1.457 |
+| D50/10° | 36.109 | −21.224 | −4.150 | 1.352 |
+| D50/2° | 35.678 | −21.177 | −5.550 | 2.792 |
+
+**A 60:1 margin**, on a second unit, against numbers we did not compute. The
+observer *is* settled by arithmetic. Pinned in `tests/test_colour_tables.py`.
+It also means the vendor application's exported condition here is **D65/10°**,
+not the M0/D50/1931-2° that ChromIQ issue #159 records for ColorQC2.

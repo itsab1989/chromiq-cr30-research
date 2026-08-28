@@ -274,3 +274,103 @@ Calibration requires physically placing the device on the black and white tiles.
 That is a HUMAN ACTION (see `CLAUDE.md` §17) and must be requested with a
 precise procedure. Design the experiment so that one human interaction yields
 the maximum number of answers.
+
+
+---
+
+# 🔴 ADVERSARIAL REVIEW — `[CR30-SKEPTIC]`, 2026-08-28
+
+## 1. The attribution question: **NOT POSSIBLE TO DETERMINE** from existing captures
+
+I tried to settle it without hardware, as instructed. It does not close. Here is
+the whole attempt, so nobody repeats it.
+
+**What the captures contain.** `EXP-MEAS-003`'s order is: patch (cap off) →
+magnet on → **host trigger** → **button press** → patch (cap off). Both candidate
+writers precede the damaged reading, so the before/after pair cannot separate
+them. That much the document already says.
+
+**The route I thought would work, and why it fails.** `EXP-MEAS-002` ran the same
+two events with the **white tile** under the aperture, and its before/after
+reference patch is:
+
+| | ratio after/before | ΔE₇₆ | worst band |
+|---|---|---|---|
+| `EXP-MEAS-002`, both gated events, tile under aperture | **1.00193 ± 0.00823** | 0.438 | 0.447 %R |
+| a **known** white-calibration write (`EXP-CAL-002` restore) | **1.0318 ± 0.010** | 1.047 | — |
+
+The mean shift is **16× smaller** than the one write we can point at. That reads
+like evidence that *neither* event wrote a calibration in `EXP-MEAS-002`.
+
+**Why that is not good enough.** The two stories are both self-consistent:
+
+- *No write happened*, so nothing moved; or
+- *a write happened against the true tile in the same seating as the state it
+  replaced*, so nothing moved — and the restore's +3.2 % is then the difference
+  between a hand-seated cap and whatever set the previous state, not the size of
+  a re-calibration.
+
+Nothing in the corpus separates those, because seating repeatability has never
+been measured. **It is measurable, cheaply, and it would settle this**: calibrate
+twice in a row without disturbing the cap, then twice more re-seating between,
+and compare. If seating repeatability is ~0.2 %, `EXP-MEAS-002` proves no write
+occurred; if it is ~3 %, `EXP-MEAS-002` proves nothing.
+
+**Confidence: NOT DETERMINED.** The standing rule stands.
+
+## 2. But the standing rule is not the right rule for ChromIQ
+
+"No host trigger with a magnet present" is unenforceable in software, because
+**the host cannot see the magnet** — that is the whole finding. A rule a program
+cannot evaluate is not a safety measure.
+
+The correct rule for a shipping backend is stronger and costs nothing:
+
+> **A ChromIQ CR30 backend must never send `BB 01 00` at all.**
+
+`usb_measure.read_stored()` reads the device's cached reading and sends no
+trigger; the operator's own button press is the trigger. That is the workflow
+`EXP-MEAS-005` already ran end to end, fifteen readings, zero rejections. The
+trigger buys nothing and risks the user's calibration.
+
+**Requested action:** `CR30.trigger()` (`src/cr30/device.py:74`) should not be
+reachable from the ChromIQ-facing API. It may stay in the research package as an
+experiment primitive; it must not be part of the integration surface. Filed in
+`INTEGRATION.md`.
+
+## 3. What the gated read returns is a FACTORY constant, and that has consequences
+
+New, and it follows from the captures rather than from reasoning about firmware:
+the gated value is **bit-identical before and after the calibration was
+destroyed**, and identical again after the restore (`EXP-MEAS-002`, `-003`,
+`EXP-BLE-010`). A value that survives having the stored white reference
+overwritten with green is not derived from the stored white reference. It is the
+tile's **nominal / certified characterisation, held in firmware**.
+
+Two consequences:
+
+1. It is **per-unit factory data**. The only other CR30 we have data for reads
+   its white reference up to **4.69 %R** differently (`PRIORART-001`, band ratio
+   0.9703 ± 0.0161, ΔE₇₆ 1.73). So `TILE_SIGNATURE` cannot be hard-coded — see
+   `MEASUREMENT.md` §"Adversarial review".
+2. It is a **free calibration check**. If the firmware holds the nominal tile
+   values, then measuring the actual tile with the gate *disengaged* and
+   comparing against them is a real calibration test — the thing §"To establish
+   by experiment" asks for. Worth an experiment; needs no new command.
+
+## 4. ⚠ Two superseded sections in this file still read as current
+
+The section *"With a magnet attached, the device stops measuring"* concludes
+**"This is good news for calibration safety. If the device does not calibrate
+against whatever the magnet is holding, then an accidental cap attachment cannot
+corrupt the stored white reference."** That is **DISPROVEN** by the section at
+the top of this file, written later. A reader arriving at the middle of the
+document gets the opposite of the finding.
+
+Likewise *"it is not 'taking the reading as a calibration' in the sense of
+recalibrating to the target — it is entering a mode where the optical path is
+ignored"* is exactly the inference the top of the file records as wrong.
+
+**Requested action for `[CR30-USB]`:** mark both DISPROVEN in place. `CLAUDE.md`
+§4 requires it, and the operator's original imprecise report was right both
+times.

@@ -4,11 +4,26 @@ NOT device protocol. This is a small, self-validating colour utility used to
 interpret what the CR30 returns, kept separate from `frame.py`/`session.py` so
 the protocol layer stays free of colour science.
 
-Observer is the **CIE 1931 2 degree** standard, deliberately: that is what the
-vendor software pins (M0 / D50 / 1931 2 deg) and therefore what we must use to
-compare against numbers the device itself displays. Argyll ships CIE *2012* 2
-deg, which is a different observer and would introduce a difference of our own
-making.
+The default observer is **CIE 1964 10 degree** with **D65**, because that is
+what the device's own display reports and what its own Lab numbers are computed
+under. ⚠ This docstring previously said the opposite ("CIE 1931 2 degree ...
+that is what the vendor software pins, M0 / D50 / 1931 2 deg") while the code
+below already selected 10 degrees -- a reader would have believed the wrong
+observer was in force.
+
+D65/10 is not merely assumed from the screen label. Two vendor captures in
+`PRIORART-001` carry the vendor application's own L*a*b* in their file names
+for a SATURATED cyan, which is a sample that CAN separate observers:
+
+    "Test Sample 36.61 -20.75 -2.86"  -> our decode, D65/10: 36.612 -20.732 -2.847   dE 0.02
+                                                    D65/2 : 36.154 -20.448 -4.302   dE 1.46
+                                                    D50/10: 36.109 -21.224 -4.150   dE 1.35
+                                                    D50/2 : 35.678 -21.177 -5.550   dE 2.79
+
+A 60:1 margin, on a second unit, against numbers we did not compute. The
+near-neutral tile in `MEASUREMENT.md` could only separate D65 from D50; this
+separates the observer as well. Argyll ships CIE *2012* 2 deg, which is a
+different observer again and would introduce a difference of our own making.
 
 The observer and illuminant tables are hard-coded and are therefore CHECKED:
 `validate_illuminants()` recomputes each white point's chromaticity from these
@@ -25,11 +40,18 @@ D65 = [82.7549, 91.4860, 93.4318, 86.6823, 104.8650, 117.0080, 117.8120,
        104.4050, 104.0460, 100.0000, 96.3342, 95.7880, 88.6856, 90.0062,
        89.5991, 87.6987, 83.2886, 83.6992, 80.0268, 80.2146, 82.2778, 78.2842,
        69.7213, 71.6091]
+# CORRECTED 2026-08-28 by [CR30-SKEPTIC]. The previous table was contaminated
+# from 610 nm and its last five entries (660-700 nm) were literally D65's
+# entries for 600-640 nm, copied in. The error reached 13.4 units (13 %) at
+# 670 nm. `validate_illuminants()` passed it: a correct table validates to
+# ~1e-4 chromaticity error and the corrupt one gave 1.5e-3, four times inside
+# the 6e-3 tolerance. The tolerance has been tightened to 1e-3 and a mutation
+# test now proves the control can see this class of error.
 D50 = [49.3084, 56.5089, 60.0998, 57.8213, 74.8246, 87.2504, 90.6117, 91.3680,
        95.1082, 91.9526, 95.7237, 96.6137, 97.1292, 102.0980, 100.7550,
-       102.3170, 100.0000, 97.7357, 98.9182, 93.5905, 97.1382, 99.9576,
-       97.3918, 94.4276, 95.7787, 88.6489, 90.0062, 89.5991, 87.6987, 83.2886,
-       83.6992]
+       102.3170, 100.0000, 97.7357, 98.9182, 93.5905, 97.1382, 99.2680,
+       99.0427, 95.7220, 98.8570, 95.6667, 98.1935, 103.0030, 99.1327,
+       87.3811, 91.6041]
 
 # CIE 1931 2-degree observer at 10 nm, 400-700 (fallback if Argyll is absent).
 _X = [0.01431, 0.04351, 0.13438, 0.28390, 0.34828, 0.33620, 0.29080, 0.19536,
@@ -102,12 +124,18 @@ def spectrum_to_lab(refl, illum=D65):
     return xyz_to_lab(spectrum_to_xyz(refl, illum), illum)
 
 
-def validate_illuminants(tol=0.006):
+def validate_illuminants(tol=0.001):
     """Positive control on OUR OWN hard-coded numbers.
 
     Recomputes each illuminant's chromaticity and compares with the published
     value. A mistyped coefficient shows up here instead of quietly shifting
     every Lab number we report.
+
+    ⚠ The tolerance is 1e-3 and not 6e-3 for a measured reason: at 6e-3 this
+    control PASSED a D50 table whose 670 nm entry was 13 % wrong (see the note
+    on `D50`). A control that cannot fail on a real defect is not a control.
+    `tests/test_colour_tables.py::test_the_illuminant_control_can_actually_fail`
+    proves the mutation lands.
     """
     out = {}
     want_by_obs = {

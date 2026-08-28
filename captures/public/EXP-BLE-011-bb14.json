@@ -1,0 +1,30 @@
+{
+  "experiment": "EXP-BLE-011",
+  "utc": "2026-08-28T15:17:50.552230+00:00",
+  "trials": [
+    {
+      "name": "bb14_08_vendor",
+      "tx": "bb1408a0916a0100ff72",
+      "rx_len": 10,
+      "rx": "bb1400a0916a0100ff6a",
+      "is_echo": false
+    },
+    {
+      "name": "bb14_09_vendor",
+      "tx": "bb1409a0916a0100ff73",
+      "rx_len": 10,
+      "rx": "bb1400a0916a0100ff6a",
+      "is_echo": false
+    },
+    {
+      "name": "bb01_00",
+      "tx": "bb01000000000000ffbb",
+      "rx_len": 10,
+      "rx": "bb01000001900a1fff75",
+      "is_echo": false
+    }
+  ],
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

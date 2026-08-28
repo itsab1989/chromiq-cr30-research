@@ -13,7 +13,18 @@ from cr30.measurement import (Measurement, MeasurementError, TILE_SIGNATURE,  # 
                               MAX_REFLECTANCE, SUSPICIOUS_REFLECTANCE)
 
 WL = list(range(400, 701, 10))
-CAP = ROOT / "captures" / "raw"
+# See the note in tests/test_usb_measure.py: `captures/raw/` is gitignored and
+# absent on a fresh clone. Spectra are identical in the redacted public copies.
+RAW, PUB = ROOT / "captures" / "raw", ROOT / "captures" / "public"
+
+
+class _Captures:
+    def __truediv__(self, name):
+        p = RAW / name
+        return p if p.exists() else PUB / name
+
+
+CAP = _Captures()
 
 
 def real(path, pred):

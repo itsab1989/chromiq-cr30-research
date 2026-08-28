@@ -120,7 +120,10 @@ now compares the 59 informative bytes and proves the comparison has teeth.
 so nobody has to rediscover that those frames are not checksum evidence. Of the
 nine `EXP-*` captures, seven contain exactly one such frame and one contains none.
 
-**406 tests pass with no hardware attached.**
+**455 tests pass with no hardware attached** — and, since session 3, they pass on
+a **fresh clone**: three modules read `captures/raw/` (gitignored) and aborted
+collection, so before that fix the suite ran **zero** tests for anybody but the
+author.
 
 ```bash
 .venv/bin/pip install pyserial bleak pytest numpy
@@ -152,3 +155,45 @@ Six experiments, ~380 device transactions, no writes to the device.
 | **ArgyllCMS's serial device-scan probe strings are inert on a CR30** — 8 strings × 4 baud rates = 32 probes, 0 bytes back, fingerprint unchanged 32/32 | `EXP-USB-007` | VERIFIED |
 | `BB 13`'s second `u32` is not a command counter, not a connection counter, not a fast clock; it steps **+361 every ~361 s** | `EXP-USB-005b/c` | DISPROVEN (three readings) / PROBABLE (slow clock) |
 | What byte 5 of the `BB 13` reply (`0x51`) means | — | **NOT DETERMINED** |
+
+
+---
+
+## Session 3 — `[CR30-SKEPTIC]` adversarial review, 2026-08-28
+
+Desk work only; the hardware lease was not taken. Full findings in issue #1.
+
+### Overturned or weakened
+
+| Was | Now | Evidence |
+|---|---|---|
+| The magnet defence is "two checks, sufficient" | **Three holes, each reproduced from a public capture** | `MEASUREMENT.md`, `tests/test_skeptic_guard_gaps.py` |
+| `TILE_SIGNATURE` protects a CR30 | **Inert on any other unit** — the second CR30 in `PRIORART-001` differs by 4.69 %R, 94× the tolerance | CORROBORATED |
+| `MAX_REFLECTANCE = 130` catches a corrupted calibration | **A real corrupted reading in this repo peaks at 105.47 %R and is ACCEPTED, without even a warning** | `EXP-MEAS-003` `patch_after` |
+| The corrupted-calibration capture was lost | **A corrupted-calibration capture SURVIVES** — the *paper* one was lost; `EXP-MEAS-003`'s own after-patch was taken under the green reference and is public | — |
+| BLE: "the same checksum rule generalises — a genuine unification" | **Four contiguous rules fit the whole five-frame BLE corpus**, including itohio's `0xBB` branch. PROBABLE by analogy | `tests/test_ble_claims_under_attack.py` |
+| BLE reply ends in a `0x7FFF0000` terminator | **DISPROVEN** — `00 00 00 00` on the vendor unit, both replies | `EXP-BLE-009` |
+| BLE: "one 200-byte notification" | **The vendor stream holds a TRUNCATED zero-filled reply and a complete one**, and the shipped decoder accepts the truncated one | `EXP-BLE-009` |
+| Offset 24 is "useless for the case that matters" | **True for host triggers, FALSE for the button path** — the workflow now recommended. 3/3 discrimination | `EXP-MEAS-001/002/003` |
+| `bb 14` — "our call was malformed, HYPOTHESIS still open" | **SETTLED: it echoes the caller's own field.** Two different payloads, same transformation | `EXP-BLE-009`, `EXP-BLE-011` |
+| D65/10° rests on the screen label, not the arithmetic | **Settled by arithmetic too** — a saturated vendor sample separates the four combinations 60:1 | `PRIORART-001` |
+| `INTEGRATION.md` §6 is the seam | **Right for chart reading; it MISSED `SpotReadManager`**, which is the better seam for live spot reads | `workflow/spot_read_manager.py:71` |
+
+### Survived the attack, and why the evidence is strong
+
+- **The magnet hazard itself.** Bit-identical spectra with white *and* green under
+  the aperture is not survivable by any "it measured something" explanation.
+- **The `0x01` BLE poll byte.** Reproduced by our own client, 15 readings.
+- **The spectral decode.** Now cross-validated a *third* way: against a second
+  unit's vendor-labelled L\*a\*b\* on a chromatic sample, ΔE 0.022.
+- **`sum(0..58)` on USB.** 260 frames, both marker values. Unmoved.
+- **`.ti3` with `SPEC_*` columns parses with no ChromIQ change.** Re-verified.
+
+### Still not determined
+
+**Which command wrote the calibration in `EXP-MEAS-003`.** I attempted it from
+the captures and it does not close — the numbers and the two rival explanations
+are in `CALIBRATION.md` §1, together with the cheap experiment (seating
+repeatability) that would settle it. The standing rule stands, and
+`INTEGRATION.md` now carries the stronger rule a program can actually obey:
+**a ChromIQ backend never sends `BB 01 00` at all.**

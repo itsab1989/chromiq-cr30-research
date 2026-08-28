@@ -85,17 +85,26 @@ class CR30:
         from . import usb_measure
         usb_measure.trigger(self._t)
 
-    def read_measurement(self, *, enforce: bool = True) -> Measurement:
+    def read_measurement(self, *, enforce: bool = True,
+                         button_header=None) -> Measurement:
         """Read the device's stored measurement.
 
         The CR30 stores the last reading; the spot workflow is *press the
         instrument's own button, then read*. With `enforce` (the default) the
-        result is gated by `Measurement.check_usable`, so a tile constant or a
-        bit-identical repeat raises instead of being returned.
+        result is gated by `Measurement.check_usable`, so a tile constant, a
+        set magnet-gate flag, or a bit-identical repeat raises instead of being
+        returned.
+
+        On USB, pass the unsolicited button header from
+        `usb_measure.wait_for_button_header()` as `button_header`. It carries
+        the magnet-gate flag AND the device's declared axis, and it is the only
+        magnet check that is unit-independent and effective on the first reading
+        of a run. Over BLE no equivalent frame is known, so the BLE path has
+        **no protocol-level magnet detection at all** -- see TRANSPORT_BLE.md.
         """
         if self.kind == "usb":
             from . import usb_measure
-            m = usb_measure.read_stored(self._t)
+            m = usb_measure.read_stored(self._t, button_header=button_header)
             m.device_model = self.model or "CR30"
             if enforce:
                 m.check_usable(self._previous)
@@ -122,7 +131,10 @@ class CR30:
             metadata={"axis": {"start_nm": axis.start_nm, "step_nm": axis.step_nm,
                                "bands": axis.bands},
                       "condition": "D65/10 (device display setting; spectra are "
-                                   "illuminant-independent)"})
+                                   "illuminant-independent)",
+                      "gate_flag": None,
+                      "gate_flag_note": "BLE has no known magnet-gate flag; "
+                                        "detection here is behavioural only"})
         if enforce:
             m.check_usable(self._previous)
         self._previous = m

@@ -7,8 +7,14 @@ transaction is indistinguishable from a real one — correct framing, valid
 checksum, a plausible near-neutral spectrum, no error, no status byte, and
 offset 24 unchanged on the host path.
 
-So a caller CANNOT rely on the protocol to tell it something went wrong.
-Detection is behavioural, and it lives here.
+So a caller CANNOT rely on the protocol to tell it something went wrong **on a
+host-triggered read**. On a BUTTON-triggered read over USB it can: the device's
+own unsolicited `BB 01 09` header carries offset 24 = 0x01 when the gate is
+engaged and 0x00 when it is not (3/3 button frames, 0/20+ host-triggered ones --
+MEASUREMENT.md). The spot workflow this project recommends is exactly the button
+case, so that flag IS available and `gate_flag` carries it. It is the only one of
+the three checks here that is unit-independent and that works on the FIRST
+reading of a run. Prefer it; the two behavioural checks are the fallback.
 """
 from __future__ import annotations
 
@@ -19,6 +25,23 @@ from dataclasses import dataclass, field
 
 class MeasurementError(Exception):
     """A reading that must not be used. Never downgraded to a warning."""
+
+
+# ⚠ The wording matters and the previous wording was wrong in a way that could
+# cost a user their calibration. It said the device "returns this constant
+# instead of measuring ... read again". CALIBRATION.md's VERIFIED finding is
+# stronger than that: the device performs a WHITE CALIBRATION against whatever
+# is under the aperture. By the time this error is raised the stored white
+# reference may ALREADY have been overwritten, and "read again" then produces
+# readings that are wrong by a scale factor no guard here can see.
+MAGNET_MESSAGE = (
+    "this reading was taken with a magnet at the aperture. The CR30 does not "
+    "measure in that state -- it performs a WHITE CALIBRATION against whatever "
+    "is under the aperture and reports the stored tile value. STOP: remove the "
+    "cap and any magnet, then RECALIBRATE (seat the cap correctly, white tile "
+    "toward the aperture, and press the device button) before reading anything "
+    "else. The device's stored white reference may already be wrong, and a "
+    "wrong white reference is invisible in the data.")
 
 
 # The gated/stored tile spectrum, captured on this unit over BOTH transports
@@ -40,6 +63,34 @@ TILE_SIGNATURE = [
 # (EXP-MEAS-001); the same paper read 156.8 % mean and 193.8 % peak with the
 # white reference corrupted (EXP-CAL-002). The hard bound must therefore sit
 # below 156, and comfortably above 100.
+#
+# ⚠⚠ KNOW WHAT THIS DOES NOT DO. `[CR30-SKEPTIC]`, 2026-08-28.
+#
+# 1. It is fitted to the single most extreme corrupted number ever recorded, and
+#    a LESS extreme corrupted reading survives in this repository and PASSES.
+#    `EXP-MEAS-003`'s `patch_after` was taken immediately after the calibration
+#    was destroyed, under the green reference, and peaks at **105.47 %R**. It is
+#    below MAX (130) and below SUSPICIOUS (110): `check_usable()` ACCEPTS it,
+#    silently, with no warning. Proven in tests/test_skeptic_guard_gaps.py.
+# 2. The guard is ONE-SIDED and the failure is TWO-SIDED. Calibrating against a
+#    surface DARKER than the tile inflates every later reading (catchable);
+#    calibrating against a surface BRIGHTER than the tile DEFLATES them, and
+#    nothing here can see that. The realistic accident during a chart read is
+#    gating on a near-white chart patch: paper reads ~85.8 % mean against the
+#    tile's ~78.9 %, so every subsequent reading comes back ~8 % DARK, forever,
+#    with no symptom at all.
+# 3. Even on the catchable side it only bites when the sample is already bright.
+#    A corruption factor below 130/96.4 = 1.35 never breaches MAX on paper, and
+#    on the dark patches that make up most of a chart no factor ever does.
+#
+# CONCLUSION: treat these bounds as a coarse backstop against gross corruption,
+# NOT as a calibration check. A real calibration check re-measures a known
+# reference; see EXP-CAL-002's design. `[CR30-SKEPTIC]` recommends the numbers
+# are NOT changed on present evidence -- widening or narrowing them does not fix
+# a one-sided test -- and that the limitation is stated in INTEGRATION.md
+# instead. Whether a fluorescing OBA paper can legitimately reach 130 %R on THIS
+# device is UNKNOWN: it depends on the UV content of the CR30's illuminant,
+# which nobody has measured. EXP-MEAS-006 is specified in MEASUREMENT.md.
 SUSPICIOUS_REFLECTANCE = 110.0   # plausible only for a fluorescing sample
 MAX_REFLECTANCE = 130.0          # above this the white reference is wrong
 MIN_REFLECTANCE = -1.0
@@ -52,6 +103,7 @@ class Measurement:
     wavelengths: list[int]
     values: list[float]
     lab: list[float] | None = None          # device-reported L*a*b*, if available
+    gate_flag: bool | None = None           # frame offset 24 of the BUTTON header
     transport: str = ""
     device_model: str = ""
     timestamp: str = ""
@@ -92,8 +144,20 @@ class Measurement:
     def looks_like_calibration_tile(self, tol: float = 0.05) -> bool:
         """Is this the stored tile constant rather than a measurement?
 
-        VERIFIED: with a magnet present the device returns exactly this, whether
-        the white tile or a GREEN surface is under the aperture.
+        VERIFIED **on this unit**: with a magnet present the device returns
+        exactly this, whether the white tile or a GREEN surface is under the
+        aperture.
+
+        ⚠ **This check is unit-specific and cannot be assumed to work on another
+        CR30.** `TILE_SIGNATURE` is one unit's stored constant. The only other
+        CR30 we have data for reads its white reference **up to 4.69 %R lower**
+        (`PRIORART-001`, "Calibrate White and Black and Test Target" /
+        "Test Sample white": band ratio 0.9703 +/- 0.0161, dE76 1.73 against
+        `TILE_SIGNATURE`). 4.69 is **94x** this tolerance, so on that unit this
+        method returns False for every gated reading and contributes nothing.
+        Widening `tol` is not the fix -- 4.69 %R would swallow real patches.
+        The fix is to LEARN the constant per unit; see MEASUREMENT.md.
+        `gate_flag` is the unit-independent check and must be preferred.
         """
         if len(self.values) != len(TILE_SIGNATURE):
             return False
@@ -112,13 +176,18 @@ class Measurement:
         return self.values == other.values
 
     def check_usable(self, previous: "Measurement | None" = None) -> None:
-        """Full gate. Raise unless this reading may be used for profiling."""
+        """Full gate. Raise unless this reading may be used for profiling.
+
+        Order matters: the protocol flag is checked FIRST because it is the only
+        one of the three that is unit-independent and works on the first reading
+        of a run. See `gate_flag`.
+        """
         self.validate()
+        if self.gate_flag:
+            raise MeasurementError(MAGNET_MESSAGE + " (The device's own header "
+                                   "flagged this reading: frame offset 24 = 1.)")
         if self.looks_like_calibration_tile():
-            raise MeasurementError(
-                "reading matches the stored calibration-tile spectrum. A magnet "
-                "near the aperture makes the CR30 return this constant instead "
-                "of measuring. Remove the cap or any magnet and read again.")
+            raise MeasurementError(MAGNET_MESSAGE)
         if self.identical_to(previous):
             raise MeasurementError(
                 "reading is bit-identical to the previous one. Either no new "

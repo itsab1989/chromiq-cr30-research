@@ -8,10 +8,22 @@ sys.path.insert(0, str(ROOT / "src"))
 from cr30.usb_measure import (CHUNK_SUBS, assemble, chunk_values, parse_axis)  # noqa: E402
 from cr30.measurement import MeasurementError  # noqa: E402
 
-CAP = ROOT / "captures" / "raw" / "EXP-CAL-001-EXP-MEAS-001-human-session.json"
+NAME = "EXP-CAL-001-EXP-MEAS-001-human-session.json"
+# `captures/raw/` is gitignored, so on a fresh clone of the PUBLIC repository it
+# does not exist. Until 2026-08-28 this module raised FileNotFoundError at
+# COLLECTION time and the whole suite ran zero tests for anybody but the author
+# -- which defeats CLAUDE.md s14 ("testable from recorded captures with no
+# hardware attached ... what makes CI and contributor work possible").
+# The redacted public copy carries the same chunk frames and spectra; the
+# redactor only rewrites byte 59 of identity frames, which this module never
+# parses. Prefer raw, fall back to public, and say which was used.
+CAP = next((p for p in (ROOT / "captures" / "raw" / NAME,
+                        ROOT / "captures" / "public" / NAME) if p.exists()), None)
 
 
 def measurements():
+    if CAP is None:
+        return []
     d = json.loads(CAP.read_text())
     out = []
     for p in d["phases"]:
@@ -26,6 +38,7 @@ CASES = measurements()
 
 
 def test_have_real_captures():
+    assert CAP is not None, "neither captures/raw nor captures/public holds the session"
     assert len(CASES) >= 5
 
 

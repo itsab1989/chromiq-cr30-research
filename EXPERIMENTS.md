@@ -583,3 +583,71 @@ anything that is not a whole 60-byte frame in a single write.
 prove the reverse direction: a scan that *opens* the port while a ChromIQ
 measurement is in flight would still take the port away. That is a locking
 question, not a protocol one, and belongs in `INTEGRATION.md`.
+
+
+---
+
+# ⚠ THE EXPERIMENT LOG STOPS AT `EXP-USB-007` — `[CR30-SKEPTIC]`, 2026-08-28
+
+`CLAUDE.md` §15 requires an entry here for **every meaningful experiment**, with
+hypothesis, setup, procedure, expected result, actual result, evidence,
+conclusion, confidence and next experiment. The following ran on hardware and
+have **no entry in this file at all**:
+
+`EXP-MEAS-002` · `EXP-MEAS-003` · `EXP-MEAS-005` · `EXP-CAL-002` ·
+`EXP-BLE-001` · `-002` · `-003` · `-006` · `-008` · `-009` · `-010` · `-011`
+
+That is the entire second half of the session — including **both experiments
+that established the magnet hazard**, the calibration corruption and its
+restore, and the whole BLE breakthrough. Their findings are written up inside
+`MEASUREMENT.md`, `CALIBRATION.md` and `TRANSPORT_BLE.md` as prose, which is not
+the same thing: a reader cannot see what was *predicted* before the run, and
+therefore cannot see whether a result was a confirmation or a surprise. That
+distinction is the whole point of the format, and `EXP-MEAS-002` is the proof —
+it was written to answer a question it could not distinguish, and the log format
+is what would have shown that in advance.
+
+**Requested action for `[CR30-USB]`:** back-fill the twelve entries. Not for
+tidiness — `EXP-MEAS-004` is the next hardware experiment and it is the
+dangerous one.
+
+## `EXP-BLE-011` — was run and was never published
+
+`captures/raw/EXP-BLE-011-bb14.json` existed with no public copy and no mention
+in any document. It is now redacted to `captures/public/`. It matters twice:
+
+1. It **settles `bb 14`** (see `TRANSPORT_BLE.md`), which `MEASUREMENT.md` still
+   lists as an open hypothesis.
+2. Its third trial writes **`bb 01 00 00 00 00 00 00 ff bb`** to the device over
+   BLE. On USB, `BB 01 00` is the **measurement trigger**, and a standing rule
+   in `SESSION_HANDOFF.md` says *"do not send a host trigger with a magnet
+   present"*. No magnet was present, so nothing was harmed — but a frame that is
+   a trigger on one transport was sent on another with no record, and the rule
+   is only enforceable if every such frame is logged.
+
+## `EXP-MEAS-006` — how far above 100 % can a real sample read on THIS device?
+
+**Why.** `MAX_REFLECTANCE = 130` and `SUSPICIOUS_REFLECTANCE = 110` are asserted
+against fluorescing paper on no evidence at all. Whether an OBA-loaded paper can
+reach them depends entirely on the UV content of the CR30's illuminant, which
+nobody has measured. The band axis starts at 400 nm and says nothing about it.
+
+**Hypothesis.** If the CR30 illuminates with a phosphor white LED (very little
+below ~410 nm) the OBA response is small and the peak stays under ~105 %R. If it
+carries a UV emitter, 110–125 %R at 430–450 nm is ordinary and the SUSPICIOUS
+bound will warn on every sheet of office paper.
+
+**Procedure.** Calibrate. Measure, in one calibration state: (a) a non-OBA paper
+(photo rag, or any paper that does not glow under a UV torch); (b) ordinary
+office copier paper, which is heavily brightened; (c) the most strongly
+brightened stock available; (d) a fluorescent highlighter mark. Record the peak
+%R and the band it falls in for each.
+
+**Expected.** A brightening-driven peak sits at 430–450 nm and is *absent* from
+the non-OBA control. That control is what separates "the paper fluoresces" from
+"the white reference has drifted", and without it the experiment proves nothing.
+
+**Decides.** Whether 110/130 are usable numbers, and — with a filtered vs
+unfiltered comparison — whether this instrument is M0 or M2.
+
+**No hardware risk.** No magnet, no trigger near a magnet, no calibration write.

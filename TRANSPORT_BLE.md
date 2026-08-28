@@ -279,4 +279,28 @@ error. This is precisely the pattern `CLAUDE.md` §14 forbids.
 - **The vendor session is ~30 s and starts at connection.** It contains no
   calibration, no trigger, no `bb 13`. "The commands seen in the vendor session"
   is not the BLE command set.
-- **No BLE host trigger is known**, which is fortunate — see `CALIBRATION.md` §2.
+- ~~**No BLE host trigger is known**, which is fortunate — see `CALIBRATION.md` §2.~~
+  **DISPROVEN — VERIFIED 2026-08-28, `EXP-BLE-012`.** A BLE host trigger exists,
+  and it was in our own command table all along under the name `STATUS`.
+
+  `bb 01 00` is the USB trigger. Sent over BLE with **no button press**, the
+  stored reading moved **11.2667 %R → 3.9222 %R**. The operator then pressed the
+  instrument's own button on the **same surface**: **3.9416 %R**. Host trigger
+  and button press agree to **0.0347 %R (0.49 % of the mean)**, while both differ
+  from the stale reading by **11.1 %R**. The control press was part of the
+  method, so a null result could not have been a broken probe.
+
+  Raw: `captures/raw/EXP-BLE-012-host-trigger.json`.
+
+  The old claim was honest about the vendor capture — it contains no trigger —
+  but "not seen in a 30 s session" was never "does not exist", and it was never
+  tested. The device's owner asked for it to be, and was right.
+
+  **Consequence, and it is a safety one.** `src/cr30/ble.py` sent `bb 01 00`
+  during discovery, and `device.py`'s BLE `identify()` sent it too — so merely
+  LOOKING for the instrument made it measure. A trigger with a magnet at the
+  aperture does not measure; it performs a white calibration against whatever is
+  under the cap (`CALIBRATION.md` §2). The cap is where the instrument lives
+  when it is not in use, so the ordinary case was the dangerous one. Use
+  `READ_MEASUREMENT` (`bb 02 10`) to identify: its reply carries the same axis
+  and it only reads what is already stored.

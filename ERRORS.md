@@ -158,3 +158,46 @@ questions that change what the library refuses, and `CLAUDE.md`'s standing
 practice is that a fault which contradicts a documented decision is reported and
 approved, not silently corrected. The evidence for both is in
 `MEASUREMENT.md` and pinned in `tests/test_skeptic_guard_gaps.py`.
+
+
+---
+
+## The device can accept commands over USB and do nothing with them
+
+**VERIFIED 2026-08-28**, live, after a session of repeated open/close cycles.
+
+Symptoms, in the order they misled us:
+
+| Observation | What it seemed to mean | What it actually meant |
+|---|---|---|
+| 0 bytes to `AA 0A 00 00` | the instrument is asleep | it was awake — advertising, and a BLE read worked |
+| display shows `U` | the USB link is up | a cable is plugged in, nothing more |
+| the port node exists | there is a device to talk to | the node belongs to the CH34x bridge, not the CR30 |
+| **the instrument BEEPS on a trigger** | it received and measured | it received; it did **not** measure |
+
+The last row is the one that matters. A beep looked like proof the command had
+been acted on, so the fault seemed to be in the reply path only. But reading the
+device's **stored measurement over BLE** showed it unchanged — still the tile
+constant from hours earlier. The trigger produced no reading at all.
+
+So the instrument had entered a state where its USB command interface **accepts
+bytes, acknowledges audibly, and processes nothing**. Neither a cable replug nor
+any DTR/RTS combination cleared it (all four states tested, 0 bytes each).
+
+### What this means for an implementation
+
+1. **A beep is not an acknowledgement.** Nothing audible tells the host a
+   command was honoured. Only a reply does.
+2. **Verify by reading back, not by the absence of an error.** The check that
+   diagnosed this — take the reading the device believes it holds and see
+   whether it changed — is the only one that distinguished "did nothing" from
+   "did it and could not tell me".
+3. **The two transports fail independently.** BLE stayed perfectly healthy
+   throughout, which is both the diagnostic that cracked this and a genuine
+   robustness option: a backend that can fall back to the other transport is
+   strictly better placed than one that cannot.
+4. A power cycle of the instrument is the suspected cure; **not yet confirmed**.
+
+**Not established:** what puts it in this state (repeated opens, a specific
+command, or a BLE session overlapping a USB one), and whether a power cycle
+reliably clears it.

@@ -55,7 +55,63 @@ def frame(cmd: int, sub: int = 0, param: int = 0, data: bytes = b"") -> bytes:
 READ_MEASUREMENT = frame(0x02, 0x10)
 STATUS = frame(0x01, 0x00)
 
-ADVERTISED_NAME_HINT = "CM"   # the device advertises its own device-id string
+# ⚠ The advertised name is the device's OWN device-id string (the value
+# AA 0A 01 returns over USB) and is therefore UNIT-SPECIFIC. Hard-coding one
+# unit's name works only on that unit. Discovery must go by SERVICE UUID and
+# then confirm over the protocol; the name is a hint and a label, never a test.
+STATUS_REPLY_PREFIX = bytes([0xBB, 0x01, 0x00])
+EXPECTED_AXIS = (400, 10, 31)      # start_nm, step_nm, bands
+
+
+async def discover(timeout: float = 10.0, *, verify: bool = True) -> list[dict]:
+    """Find CR30 candidates without knowing any unit's name.
+
+    Two stages, because neither alone is sound:
+
+    1. **Advertisement filter** — devices exposing the ffe0 service. This is the
+       generic HM-10 style BLE-UART service, shared with many unrelated
+       products, so it is a shortlist and NOT an identification.
+    2. **Protocol confirmation** (`verify=True`) — connect and send the status
+       frame. A CR30 replies `bb 01 00` followed by its spectral axis
+       400 nm / 10 nm / 31 bands. That is a property of the DEVICE, not of its
+       name, so it works on any unit.
+
+    Returns dicts with `name`, `address`, `rssi`, `confirmed`. The caller may
+    present them for the user to choose from and remember the choice — the
+    address is stable per host, the name is the unit's own id.
+    """
+    from bleak import BleakScanner, BleakClient
+
+    found = await BleakScanner.discover(timeout=timeout, return_adv=True)
+    out = []
+    for dev, adv in found.values():
+        uuids = [u.lower() for u in (adv.service_uuids or [])]
+        if FFE0_SERVICE.lower() not in uuids:
+            continue
+        entry = {"name": adv.local_name or dev.name or "",
+                 "address": dev.address, "rssi": adv.rssi, "confirmed": False}
+        out.append(entry)
+    if verify:
+        for entry in out:
+            try:
+                async with BleakClient(entry["address"], timeout=8.0) as c:
+                    buf = bytearray()
+                    await c.start_notify(FFE1, lambda _s, d: buf.extend(bytes(d)))
+                    await c.write_gatt_char(FFE1, STATUS, response=False)
+                    await asyncio.sleep(0.4)
+                    for _ in range(4):
+                        await c.write_gatt_char(FFE1, POLL, response=False)
+                        await asyncio.sleep(0.3)
+                        if buf:
+                            break
+                    i = bytes(buf).find(STATUS_REPLY_PREFIX)
+                    if i >= 0 and len(buf) - i >= 8:
+                        ax = BleAxis.parse(bytes(buf)[i:i + 8])
+                        entry["axis"] = (ax.start_nm, ax.step_nm, ax.bands)
+                        entry["confirmed"] = entry["axis"] == EXPECTED_AXIS
+            except Exception as e:
+                entry["error"] = type(e).__name__
+    return out
 
 
 @dataclass
@@ -77,8 +133,14 @@ class BleAxis:
 class BleTransport:
     """Poll-driven BLE link. Synchronous facade over bleak's async API."""
 
-    def __init__(self, name: str = "CM454M0223", *, address: str | None = None,
+    def __init__(self, name: str | None = None, *, address: str | None = None,
                  timeout: float = 20.0):
+        """`address` selects a remembered unit; `name` is an optional hint.
+
+        With neither, the transport DISCOVERS by service UUID and confirms over
+        the protocol — so it works on a CR30 it has never seen. Passing a name
+        is only a convenience for a known unit; it is never an identity test.
+        """
         self.name, self.address, self.timeout = name, address, timeout
         self._client = None
         self._buf = bytearray()
@@ -95,15 +157,19 @@ class BleTransport:
 
         async def _open():
             target = self.address
+            if target is None and self.name:
+                target = await BleakScanner.find_device_by_name(
+                    self.name, timeout=self.timeout)
             if target is None:
-                dev = await BleakScanner.find_device_by_name(self.name,
-                                                             timeout=self.timeout)
-                if dev is None:
+                cands = await discover(timeout=min(self.timeout, 12.0))
+                ok = [c for c in cands if c["confirmed"]] or cands
+                if not ok:
                     raise ConnectionError(
-                        f"CR30 {self.name!r} is not advertising. It stops "
-                        "advertising while another central holds it — "
-                        "disconnect the phone app.")
-                target = dev
+                        "No CR30 found over Bluetooth. The device stops "
+                        "advertising while another central holds it, so "
+                        "disconnect the phone app; then press its button to "
+                        "wake it and try again.")
+                target = ok[0]["address"]
             c = BleakClient(target, timeout=self.timeout)
             await c.connect()
             await c.start_notify(FFE1, self._on_notify)

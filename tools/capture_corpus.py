@@ -25,6 +25,7 @@ from cr30.measurement import MeasurementError
 from capture_io import save_capture
 
 TARGET = int(sys.argv[1]) if len(sys.argv) > 1 else 40
+ADDRESS = sys.argv[2] if len(sys.argv) > 2 else None
 
 
 def main():
@@ -38,7 +39,7 @@ def main():
            "note": "one calibration state; readings auto-detected on change",
            "readings": [], "rejected": []}
     seen: set[tuple] = set()
-    dev = CR30.open_ble()
+    dev = CR30.open_ble(address=ADDRESS)
     try:
         last = None
         idle = 0

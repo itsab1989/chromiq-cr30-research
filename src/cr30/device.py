@@ -25,9 +25,30 @@ class CR30:
 
     # -- construction ----------------------------------------------------
     @classmethod
-    def open_ble(cls, name: str = "CM454M0223", **kw) -> "CR30":
-        t = ble.BleTransport(name, **kw); t.open()
+    def open_ble(cls, name: str | None = None, *, address: str | None = None,
+                 **kw) -> "CR30":
+        """Open over Bluetooth.
+
+        With no arguments this DISCOVERS the device: it shortlists advertisers
+        exposing the ffe0 service, then confirms each over the protocol by
+        checking it reports the CR30 spectral axis (400 nm / 10 nm / 31 bands).
+        That is a property of the device, so it works on a unit never seen
+        before.
+
+        ⚠ **The advertised name is unit-specific** — it is the device's own id
+        string, the value `AA 0A 01` returns over USB. Pass `address` to pin a
+        remembered unit (stable per host) or `name` as a convenience hint, but
+        never treat either as an identity test.
+        """
+        t = ble.BleTransport(name, address=address, **kw); t.open()
         return cls(t, "ble")
+
+    @staticmethod
+    def discover_ble(timeout: float = 10.0) -> list[dict]:
+        """List CR30 candidates for a chooser. See `ble.discover`."""
+        import asyncio
+        return asyncio.new_event_loop().run_until_complete(
+            ble.discover(timeout=timeout))
 
     @classmethod
     def open_usb(cls, port: str | None = None) -> "CR30":

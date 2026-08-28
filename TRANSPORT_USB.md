@@ -92,3 +92,37 @@ fact — see §7.1c there.
    stack may coalesce or split writes differently. **This is the portability
    risk that matters**, and it needs no CR30 expertise to test — only the device
    on another host.
+
+## The instrument sleeps, and sleep is INDISTINGUISHABLE from absent
+
+**VERIFIED 2026-08-28.** After roughly ninety minutes idle, the CR30 stopped
+answering on USB entirely — not an error, not a truncated frame, **zero bytes**
+to the identity query `AA 0A 00 00`, which is the lightest thing the protocol
+has. The serial node was still present and nothing else held the port. The same
+command had worked all afternoon.
+
+Waking it (a press of its own button) restores it.
+
+### Why this matters more than it looks
+
+**A sleeping instrument and an unplugged one look identical to the host**:
+`/dev/cu.usbserial-*` exists in both cases, because the node belongs to the
+CH34x bridge rather than to the CR30's firmware. Any "is the instrument there?"
+check that trusts the node's existence is wrong.
+
+Consequences for an implementation:
+
+1. **Presence must be established by asking the device**, never by finding the
+   port. `AA 0A 00 00` returning the model string `CR30` is the only sound test
+   — the same conclusion `PLATFORM_SUPPORT.md` reaches for a different reason
+   (the descriptors describe the shared bridge, and there is no USB serial
+   number).
+2. **A read that times out mid-chart is most likely sleep**, not a fault. A user
+   who steps away during a 390-patch sheet will meet this. The error message
+   must say so first, before cables and permissions, because it is the likeliest
+   cause and the cheapest to fix.
+3. **Do not retry silently for long.** Ten seconds of nothing per patch, times a
+   chart, is a miserable way to discover the instrument dozed off.
+
+**Not established:** the exact idle timeout, whether BLE sleeps on the same
+clock, and whether a wake is needed once per session or once per sleep.

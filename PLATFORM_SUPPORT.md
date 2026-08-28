@@ -30,9 +30,36 @@ plug-in.
 the device works with fewest moving parts and where the eventual ChromIQ user
 runs anyway.
 
-Scope note: verified on macOS 15.7.9 arm64. Apple's CH34x DriverKit driver has
-shipped since macOS 11, but the minimum version supporting *this* PID has not
-been tested here.
+### ⚠ Scope, corrected 2026-08-28 by `[CR30-SKEPTIC]`
+
+The dext is **a hard-coded allow-list of exactly two product IDs**, not general
+CH34x support. From
+`/System/Library/DriverExtensions/com.apple.DriverKit-AppleUSBCHCOM.dext/Info.plist`
+on this machine:
+
+```
+DriverKit-AppleUSBCHCOM        idVendor 6790 (0x1A86)   idProduct 29987 (0x7523)
+DriverKit-AppleUSBCHCOM-1A86   idVendor 6790 (0x1A86)   idProduct 21972 (0x55D4)
+OSMinimumDriverKitVersion      24.6
+```
+
+It works for us **solely because this unit's bridge reports `0x7523`**. A CR30
+shipped with a CH343/CH347 bridge on a third PID would not bind and would need
+a vendor driver.
+
+The previous claim that Apple's driver "has shipped since macOS 11" is
+**withdrawn** — nothing on this machine supports it, and the part that matters
+is the *PID list*, which may differ between releases. Any host can check in one
+line:
+
+```bash
+plutil -p /System/Library/DriverExtensions/com.apple.DriverKit-AppleUSBCHCOM.dext/Info.plist \
+  | grep -E 'idVendor|idProduct'
+```
+
+Correct wording: **no driver is needed on macOS 15.7.9 arm64 for VID `0x1A86`
+PID `0x7523`, because Apple's shipped DriverKit dext matches that PID
+explicitly.** That is still enough to falsify #159 §9b for this unit.
 
 ## Transport × platform
 
@@ -63,4 +90,13 @@ undecoded parameter commands, and (b) confirming cross-platform portability.
   any CH34x device shows it, so it must not be used to identify a CR30.
   **The only trustworthy identification is asking the device: `AA 0A 00 00`
   returns the ASCII model string `CR30`.**
-- Baud rate is irrelevant (`PROTOCOL.md` §3) — do not expose it as a setting.
+- Baud rate must not be exposed as a setting (`PROTOCOL.md` §4). Note the
+  *observation* (identical replies at five rates) is VERIFIED while the
+  *conclusion* (the device discards line coding) is only PROBABLE — it is
+  equally explained by Apple's driver never emitting the CH34x divisor request.
+  `EXP-USB-007` decides. The implementation consequence is the same either way.
+- **The port must be excluded from Argyll's serial scan once identified.**
+  ChromIQ deliberately keeps `/dev/cu.usbserial-*` in that scan
+  (`ChromIQ/core/argyll_runner.py:43`), so Argyll writes foreign ASCII probes
+  to a plugged-in CR30 on every measurement start. `ARGYLL_EXCLUDE_SERIAL_SCAN`
+  already exists as the mitigation. See `INTEGRATION.md` §8 and `EXP-USB-008`.

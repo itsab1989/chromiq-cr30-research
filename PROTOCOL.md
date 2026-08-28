@@ -2,120 +2,324 @@
 
 Confidence levels per `CLAUDE.md` §4. Every VERIFIED line names its capture.
 
+**Revised 2026-08-28 by `[CR30-SKEPTIC]`.** Session 1 filed several findings at
+a confidence its evidence did not buy; the corrections are marked ⚠ in place.
+The corrections do not change the conclusions — they change what is *proved*.
+
+## 0. The evidence base
+
+| Capture | What it is | Class |
+|---|---|---|
+| `captures/public/EXP-MAC-USB-001-identity.json` | this unit, macOS, 4 distinct device frames | VERIFIED-class, but see ⚠ below |
+| `captures/public/EXP-USB-002-checksum.json` | this unit, one command, five checksums | VERIFIED-class |
+| `captures/public/PRIORART-001-vendor-usb-frames.json` | **260 unique frames** from the vendor application driving a *second* CR30 on Windows | CORROBORATION only |
+| `captures/public/PRIORART-002-spectra.json` | 58 unique spectra decoded from the above | CORROBORATION only |
+
+⚠ **Two of the four published identity frames carry a checksum computed by
+`tools/redact.py`, not by the device.** The redactor rewrites byte 59 after
+replacing the device-id strings. Those two frames are self-consistent by
+construction and are **not evidence for any checksum rule**. The device's own
+bytes are in `captures/raw/` (gitignored) and do satisfy the rule. Pinned by
+`tests/test_checksum_rule_space.py`.
+
+`tools/mine_priorart_frames.py` extracts the prior-art corpus **structurally**
+(start byte, `param == 0x00`, marker, chaining) and never looks at byte 59, so
+the corpus can test checksum hypotheses without circularity. Of 6252 structural
+windows, 3531 fail `sum(0..58)` — a false-positive rate that proves the
+extraction is not selecting on the rule it is used to test.
+
 ## 1. Frame format
 
-**VERIFIED** (`captures/public/EXP-MAC-USB-001-identity.json`) — every frame
-observed so far, in both directions, is exactly **60 bytes**.
+**VERIFIED** — every frame observed, in both directions, on two units, on two
+platforms, is exactly **60 bytes**.
 
 | Byte | Field | Observed |
 |---|---|---|
-| 0 | Start | `0xAA` (identity/handshake class). `0xBB` reported by prior art for command class — **not yet verified here** |
-| 1 | Command | `0x0A` = device information |
-| 2 | Sub-command | `0x00`…`0x03` for identity fields |
-| 3 | Parameter | `0x00` in all frames observed |
-| 4–57 | Payload | 54 bytes. *(Prior art calls this 4–55 / 52 bytes; the extra two bytes at 56–57 have not been shown to be a separate field — see §6.)* |
-| 58 | Marker | `0xFF` in every frame observed, both directions |
-| 59 | Checksum | see §2 |
+| 0 | Start | `0xAA` identity class · `0xBB` command class (**now CORROBORATED**, 260 vendor frames) |
+| 1 | Command | see §5 |
+| 2 | Sub-command | see §5 |
+| 3 | Parameter | `0x00` in **all 6252** windows across both units. Never seen non-zero. |
+| 4–57 | Payload | 54 bytes. See §7.1 — the prior art's 4–55 reading is now **DISPROVEN**. |
+| 58 | Marker | `0xFF`, **except on a `BB 01 09` measurement header**, where `0x00` also occurs — see §6 |
+| 59 | Checksum | §2 |
 
-## 2. Checksum — prior art is DISPROVEN
+## 2. Checksum
 
-**VERIFIED rule:**
+**The rule:**
 
 ```
 checksum = sum(frame[0..58]) mod 256        # 59 bytes, marker INCLUDED
 ```
 
-All four device-originated frames in `EXP-MAC-USB-001` satisfy this exactly.
+**Confidence: CORROBORATED, and now uniquely determined.** Not on session 1's
+evidence — on the vendor corpus.
 
-**DISPROVEN:** `itohio/color-science`
-(`cr30reader/protocol/packets.py::calculate_checksum`) computes
-`sum(frame[0..57]) mod 256`, then subtracts 1 when the start byte is `0xBB`.
-Against real device frames this is wrong by exactly `+1` on all four, because
-it omits the marker byte `0xFF` (`0xFF ≡ -1 mod 256`). Its `0xBB` special case
-is a coincidental patch for the same off-by-one on the other frame class, in
-the wrong place.
+⚠ **What session 1's four frames actually proved.** They excluded whole
+families: XOR over any range, negated/two's-complement sums, Fletcher-8,
+Fletcher-16-low, position-weighted sums, and CRC-8 over 11 polynomials × 256
+initial values × both bit orders × 5 ranges with `xorout` solved — **0 of
+14 080 CRC parameterisations fit**. So "an unweighted additive byte sum" was
+earned. But **fifteen** contiguous additive rules fit those four frames
+exactly:
 
-The simple unified rule explains both classes without a special case.
+```
+sum[0:55]+0xff  sum[0:56]+0xff  sum[0:57]+0xff  sum[0:58]+0xff  sum[0:59]+0x00
+sum[1:55]+0xa9  …                                              sum[1:59]+0xaa
+sum[2:55]+0xb3  …                                              sum[2:59]+0xb4
+```
 
-**VERIFIED, and it is why the bug survived** (`EXP-USB-002`): the CR30 **does
-not validate the checksum of a request.** The identical identity request was
-sent with the correct checksum, the prior-art checksum, `0x00`, `0xFF` and
-`0x42`; all five produced a normal, correctly-checksummed 60-byte reply. A
-transmit-side checksum error therefore has no observable consequence — so the
-published rule was never exercised where it would fail.
+plus 2^12 = 4096 further indistinguishable variants per rule, because bytes
+3, 4, 38, 43–48 and **55, 56, 57** are zero in all four. The confounds are
+structural: bytes 0/1/3 are constant (start of range trades against the
+constant), byte 58 is constant `0xFF` (marker inclusion trades against the
+constant), 55–57 are zero (payload extent invisible).
 
-**The checksum still matters, in the receive direction.** Device replies are
-consistently checksummed, so it is the available integrity check on inbound
-spectral data. Per `CLAUDE.md` §14, a checksum failure must fail loudly.
+**What settles it.** Against 260 vendor frames spanning both start classes,
+**both marker values**, eight command bytes and frames with data at bytes 54
+and 56, exactly **one** contiguous rule survives — `sum[0:59] + 0x00`. The
+frames with marker `0x00` are the discriminating case, and they choose our
+rule over `sum[0:58]+0xff` outright.
 
-## 3. Baud rate is not a protocol parameter
+**Prior art, precisely.** itohio
+(`cr30reader/protocol/packets.py::calculate_checksum`) computes `sum(0..57)`
+and subtracts 1 when the start byte is `0xBB`. Its **`0xAA` branch is
+DISPROVEN**. Its **`0xBB` branch is not "a coincidental patch in the wrong
+place"** — `sum(0..57) − 1` is `sum[0:58]+0xff`, one of the fifteen rules our
+own four frames could not distinguish from the correct one. It is wrong only
+on frames where the marker is `0x00`, which is exactly where their own
+documentation says `0xBB` markers can be `0x00`.
 
-**VERIFIED** (`EXP-MAC-USB-001`): identical byte-for-byte replies at **9600,
-19200, 38400, 57600 and 115200** baud.
+**VERIFIED, and it is why the bug survived** (`EXP-USB-002`): the CR30 does not
+validate the checksum of a request — see §3, which now qualifies that.
 
-This resolves a documented inconsistency in the prior art, where captures showed
-115200 and one showed 9600 while the implementation defaults to 19200. All are
-correct because none of them reach a UART: the bridge is a CH55x microcontroller
-presenting a serial interface, and line coding is discarded.
+**The checksum matters in the receive direction.** Device replies are
+consistently checksummed on both units, so it is the only integrity check on
+inbound spectral data. Per `CLAUDE.md` §14, a mismatch must fail loudly.
 
-**Consequence:** any baud rate may be used. An implementation must not "detect"
-or negotiate one, and a wrong baud rate is not a plausible failure cause.
+## 3. Request-checksum validation — ⚠ downgraded to PROBABLE
 
-## 4. Device information — command `0xAA 0x0A ss 0x00`
+`EXP-USB-002` sent `AA 0A 00 00` five times varying only byte 59 and got five
+identical replies. **That data cannot exclude its strongest rival:** the device
+may have validated, rejected, and replayed a cached reply. Every case used the
+same sub-command, so a cache and an ignore produce a byte-identical transcript.
+A second rival: the device may never read byte 59 at all, if it acts on a
+prefix or frames by inter-byte gap.
 
-**VERIFIED** (`EXP-MAC-USB-001`). Offsets are absolute frame offsets.
+**⚠ Both rivals are now DISPROVEN — restore to VERIFIED.** `[CR30-USB]`'s
+`EXP-USB-006` sent `AA 0A 00 00` with the payload set to a ramp and the reply
+came back **carrying request bytes echoed into offsets 4 and 55–57**; a request
+with `A5 5A` at 56–57 was answered with `A5 5A` still there. **A cached reply
+cannot echo bytes that were only just sent**, so the device parses the request.
+And `EXP-USB-003` extended the result to two `0xBB` commands, with the device
+**recomputing byte 59 itself** rather than passing our bad checksum through.
+
+The device also **ignores the request's marker byte** — byte 58 set to `0x00`
+or `0x5A` produced the normal reply in both classes (`EXP-USB-006`).
+
+Implementation consequence unchanged: no transmit-side error detection exists
+(`ERRORS.md`).
+
+## 4. Baud rate — ⚠ downgraded to PROBABLE
+
+**Observed (VERIFIED):** byte-identical replies at 9600, 19200, 38400, 57600
+and 115200 (`EXP-MAC-USB-001`).
+
+**Inferred (PROBABLE):** that the *device* discards line coding. The
+observation is equally explained by Apple's `AppleUSBCHCOM` never emitting the
+CH34x divisor vendor request. Session 1 tested one host driver on one OS and
+wrote a conclusion about the device.
+
+**Decided by `EXP-USB-007`**: break the *framing*, not the rate — 7 data bits,
+or 2 stop bits, or mark parity. A real UART behind the bridge truncates `0xAA`
+to `0x2A` at 7 bits and cannot answer; a firmware CDC endpoint with no UART
+answers identically.
+
+**The implementation consequence is unchanged and safe either way:** never
+expose, negotiate or "detect" a baud rate, and never diagnose a fault as a
+wrong baud rate.
+
+## 5. Command vocabulary
+
+**CORROBORATED** from `PRIORART-001` — the complete set the vendor application
+uses across connect, calibrate, measure, button and job sessions. Eight `cmd`
+bytes: `0x01, 0x0A, 0x10, 0x11, 0x13, 0x17, 0x21, 0x28`.
+
+| Triple | Context | Reading | Confidence |
+|---|---|---|---|
+| `AA 0A 00`–`03` | connect | device information | **VERIFIED** here (§6) |
+| `BB 17 00` | connect | **pure echo** — reply equals request in bytes 0–58 (`EXP-USB-003`) | VERIFIED |
+| `BB 28 00` | connect | **pure echo** — a marker planted at bytes 53,54 comes straight back (`EXP-USB-003`) | VERIFIED |
+| `BB 13 00` | connect, job change | **job record**: two little-endian Unix timestamps at payload 1..8, ASCII label at payload 9 | CORROBORATED |
+| `BB 10 00` | calibration only | **black calibration** | CORROBORATED |
+| `BB 11 00` | calibration only | **white calibration** | CORROBORATED |
+| `BB 01 00` | measurement | trigger | CORROBORATED |
+| `BB 01 09` | measurement | header — declares the spectral axis (§7) | CORROBORATED |
+| `BB 01 10/11/12` | measurement | spectral chunks (§7) | CORROBORATED |
+| `BB 01 13` | measurement | fourth chunk, **not spectral** (§7) | CORROBORATED |
+| `BB 21 01` | one long session, **1745 frames** | streaming / live mode | HYPOTHESIS |
+
+Calibration replies carry `0x01` at **payload index 2 (frame offset 6)** for
+both black and white, on all four occurrences. itohio calls this "payload byte
+1"; the offset is 2. Reading it as success is HYPOTHESIS — no failed
+calibration has been captured, so `0x01` has never been contrasted with
+anything.
+
+⚠ **`BB 13 00` is not a sensor-parameter command.** `STATUS.md` and
+`PROTOCOL.md` §6.4 previously called parameter/configuration commands the
+"highest-value unknown" because "integration time and averaging would live
+there" and they are "the only things that could change the ~1 s/reading
+verdict". The vendor capture *named* `param change.spm` contains **only**
+`BB 13 00` frames, and their payload is two Unix timestamps (decoding to
+2025-10-11, matching the capture dates) plus the ASCII label `Check`. **No
+sensor-parameter command appears anywhere in ten vendor sessions.** On present
+evidence there is no known knob for integration time or averaging. That is a
+negative result, and it should be treated as one rather than left as an open
+promise.
+
+## 6. Device information — `0xAA 0x0A ss 0x00`
+
+**VERIFIED** (`EXP-MAC-USB-001`), on **one unit**. Offsets are absolute.
 
 | Sub | Field | Offset | Length | Observed on this unit |
 |---|---|---|---|---|
-| `0x00` | Device id | 9 | 10 | `<DEVICE-ID-1>` (redacted) |
-| `0x00` | **Model** | 39 | 4 | **`CR30`** |
+| `0x00` | Device id | 9 | ≥10 | (redacted) |
+| `0x00` | **Model** | 39 | ≥4 | **`CR30`** |
 | `0x00` | Unknown | 5–8 | 4 | `56 00 19 03` |
-| `0x01` | Second id | 19 | 10 | `<DEVICE-ID-2>` (redacted) |
+| `0x01` | Second id | 19 | ≥10 | (redacted) |
 | `0x01` | Version | 49 | 8 | `V11.3.` |
 | `0x02` | Build date | 5 | 12 | `0.0.20231219` |
 | `0x02` | Version | 29 | 9 | `V10.0.0.0` |
 | `0x03` | Unknown | 19 | 1 | `0x02` |
 
-**Model confirmation is VERIFIED**: the device reports the ASCII string `CR30`,
-independently confirming the model without relying on the seller's listing.
+⚠ **The lengths are lower bounds, not field widths.** They are the lengths of
+*this unit's* values. `src/cr30/identity.py` hard-codes them as exact, which
+silently truncates a longer value on another unit and makes `is_cr30()` return
+True for any model whose name merely *starts* with `CR30`. Fields should be
+read to the NUL terminator inside a bounded region.
 
-The reply echoes the request's start, command and sub-command bytes in
-positions 0–2, which gives free request/response correlation.
+The reply echoes the request's start, command and sub-command in bytes 0–2,
+which gives free request/response correlation. `parse_identity()` does not
+currently check it.
 
-### Open on this command
-- `56 00 19 03` at offset 5 (sub `0x00`) — **HYPOTHESIS**: `0x56` = 'V' may
-  begin a version string; `19 03` may be a hardware or sensor revision. Untested.
-- Two version strings (`V11.3.` and `V10.0.0.0`) at different sub-commands —
-  **HYPOTHESIS**: firmware vs. protocol/algorithm version. Untested.
-- Sub `0x03` returning a single `0x02` — **HYPOTHESIS**: a status or capability
-  byte. Untested; the prior art labels it "status / build info, optional".
+## 7. Measurement frames
 
-## 5. Not yet verified here
+### 7.1 Payload extent — resolved, and it is command-class specific
 
-Everything below is **prior-art claim only**, carried for testing, not asserted:
+Two independent results, which only make sense together.
 
-| Claim | Source | Status |
+**`[CR30-USB]`, `EXP-USB-006`, our unit.** A reply is the request buffer
+**mutated in place**. For the `AA 0A` class the device overwrites offsets
+**5–54**, forces byte 58, recomputes byte 59, and **leaves offsets 4, 55, 56
+and 57 holding whatever the caller sent** — proved by planting `A5 5A` at 56–57
+and getting it back. So session 1 saw `0x00` at 56–57 because the *requests*
+were zero there, not because the field ends at 55.
+
+**`[CR30-SKEPTIC]`, `PRIORART-001`, a second unit.** Exactly **20** frames (7 distinct) in
+the vendor corpus carry non-zero data at byte 56, and they are **all** `BB 01 09`
+measurement headers — device-emitted, payload non-empty, and the checksum
+covers byte 56. Bytes 55 and 57 are zero in all 6252 windows.
+
+**Together:** `[CR30-USB]`'s HYPOTHESIS that "the 5–54 span is command-class
+specific and a measurement chunk may differ" is **CORROBORATED**. The frame's
+payload field is **4–57 inclusive, 54 bytes**; the *device-written* span is
+5–54 for `AA 0A` and reaches byte 56 for `BB 01 09`. itohio's "payload = 4–55"
+is DISPROVEN as a description of the frame. A decoder must not assume either
+span — read what the frame declares (§7.2).
+
+### 7.1a ⚠ Disagreement between the agents — resolved against `[CR30-USB]`
+
+`src/cr30/frame.py` currently states, as VERIFIED from `EXP-USB-006`:
+
+> *the device forces byte 58 to `0xFF` on every frame it emits, whatever the
+> request contained. So on this firmware the two rules cannot be told apart on
+> `0xBB` traffic, and their `0xBB` branch is correct.*
+
+**DISPROVEN.** The device emits marker `0x00` on `BB 01 09` measurement
+headers — **20 occurrences, 7 distinct frames** across two vendor sessions
+(`captures/public/PRIORART-001-vendor-usb-frames.json`), payload non-empty,
+checksum valid under `sum(0..58)`.
+
+The claim is true for `AA 0A`, `BB 13`, `BB 17` and `BB 28` — every class
+`EXP-USB-006` exercised — and false for the one class it could not reach,
+which is the one that carries the measurement. Consequently itohio's `0xBB`
+branch is **not** correct on this firmware: it is off by one on exactly the
+measurement header frames, the frames a real implementation must parse. That
+is also why those 20 frames are what makes `sum(0..58)` the unique surviving
+rule (§2).
+
+**Requested action for `[CR30-USB]`:** amend the `checksum()` docstring. The
+finding that motivated it — that the device rewrites byte 58 and byte 59 on the
+reply — stands and is valuable; only "on every frame it emits" is too strong.
+
+### 7.2 The header frame declares the spectral axis
+
+Every `BB 01 09` header in all ten vendor sessions carries the same
+`frame[4:7] = 28 1f 0a` = **40, 31, 10**.
+
+Independently, the vendor application's own exported record for the same
+traffic (`param change-and-measure.colors`, base64 JSON) contains:
+
+```json
+"spectral_info": { "wave_start": 400, "wave_number": 31, "wave_interval": 10 }
+```
+
+**CORROBORATED reading:** byte 4 = start wavelength ÷ 10, byte 5 = band count,
+byte 6 = step in nm. It is *consistent with* — not proof of — a self-describing
+axis, because all 70 headers observed are identical.
+
+**Implementation consequence, sound either way:** do not hard-code 400–700/10.
+Read the header, and **fail loudly if it is not `28 1f 0a`** rather than
+assuming.
+
+### 7.3 Chunk layout — the "unexplained 20 bytes" do not exist
+
+Floats are little-endian `float32`, **twelve per chunk**, starting at frame
+offset 6:
+
+```
+chunk 0x10 -> values  0..11      (12)
+chunk 0x11 -> values 12..23      (12)
+chunk 0x12 -> values 24..30      ( 7, remaining slots zero-padded)
+                                 -- 31 values total
+chunk 0x13 -> NOT spectral. Carries a copy of values 0..4 at frame offset 34.
+```
+
+itohio concatenates 0x10–0x12 and slices 124 bytes, which arrives at the same
+31 numbers by accident. Their "144 accumulated, 124 used, **20 unexplained**"
+is chunk `0x12`'s zero padding, and the chunk `0x13` they fetch and discard is
+a different field. `MEASUREMENT.md`'s statement that "that asymmetry is a
+strong hint the chunking is misunderstood" is **resolved**: the chunking was
+understood, the accounting was not.
+
+`tools/decode_spectra.py` implements this and **rejects** a measurement whose
+chunks do not deliver what the header declares.
+
+### 7.4 The marker byte is not a constant
+
+Marker `0x00` occurs **only** on `BB 01 09` headers, never on any other frame,
+in either unit's traffic. Where the capture names the trigger:
+
+| Capture | marker `0x00` | marker `0xFF` |
 |---|---|---|
-| `0xBB 0x10` black calibration | itohio | untested here |
-| `0xBB 0x11` white calibration | itohio | untested here |
-| `0xBB 0x01 0x00` measurement trigger | itohio | untested here |
-| `0xBB 0x01 0x10..0x13` spectrum chunk fetch | itohio | untested here |
-| Unsolicited frame on button press | itohio | untested here |
-| 31 little-endian `float32`, 400–700 nm @ 10 nm | itohio + beerjongen CSV | untested here |
-| Values are percent reflectance | beerjongen sample CSV | untested here |
-| M0 / D50 / 1931 2° measurement condition | Pharmacist write-up | untested here |
+| `button presses and disconnected presses` | **5** | 0 |
+| `Test Sample …`, `Test Target …`, `Calibrate …`, `param change-and-measure` | 0 | **25** |
+| `experiments - long` (unlabelled, mixed) | 15 | 18 |
 
-## 6. Known open structural questions
+**HYPOTHESIS, well corroborated:** byte 58 on a measurement header flags a
+**button-triggered / unsolicited** reading. Every capture with an unambiguous
+label agrees; the one mixed capture is unlabelled and neither confirms nor
+refutes it. This answers `PROTOCOL.md` §6.3 as it previously stood: "marker" is
+a flag field, not a constant, and an implementation must not assert `0xFF`.
 
-1. **Payload extent.** Prior art treats bytes 4–55 as payload and ignores 56–57.
-   In `EXP-MAC-USB-001` bytes 56–57 are `0x00` in every frame, so the two
-   readings are indistinguishable on present evidence. A frame carrying data
-   near the end (a spectrum chunk) will separate them.
-2. **Is `0xAA` vs `0xBB` a class distinction or a direction marker?** Only `0xAA`
-   traffic has been observed here.
-3. **Marker byte 58.** Constant `0xFF` so far. Prior art claims `0xBB` frames may
-   carry `0x00`. If true, "marker" may be a length, flag or terminator field
-   rather than a constant.
-4. **Parameter/configuration commands.** Unresolved upstream and unresolved here.
-   The highest-value unknown, because it is where integration time and averaging
-   would live — the only things that could change the ~1 s/reading verdict.
+## 8. Still open
+
+1. `56 00 19 03` at offset 5 of sub `0x00` — HYPOTHESIS: `0x56` = 'V'.
+2. Two version strings (`V11.3.`, `V10.0.0.0`) — firmware vs algorithm?
+3. Sub `0x03` returning `0x02` — status or capability byte.
+4. `BB 21 01` — 1745 frames in one session; the first carries `00 01 00 …`.
+   Streaming or live preview. Unresolved and **green only as a stream**
+   (`SAFETY_ENVELOPE.md` §2a).
+5. `BB 17 00` / `BB 28 00` — empty both ways. Handshake, keep-alive or mode?
+6. Whether calibration status `0x01` contrasts with anything.
+7. What the copy of values 0..4 in chunk `0x13` is for.
+8. **Whether any sensor-parameter command exists at all.** See §5.

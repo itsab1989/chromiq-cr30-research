@@ -43,3 +43,23 @@
   tooling only (`CLAUDE.md` §9).
 - **Android HCI snoop.** Would need a phone and the vendor app; a human action.
   Only if macOS GATT enumeration proves insufficient.
+
+---
+
+## Added in session 2 by `[CR30-SKEPTIC]` — all hardware-free
+
+| Tool | Purpose |
+|---|---|
+| `tools/mine_priorart_frames.py <dir>` | Extract CR30 frames from the itohio Eltima `.spm` dumps. Extraction is **structural** and never uses byte 59, so the corpus can test checksum hypotheses without circularity. Never rewrites byte 59; drops `AA 0A` identity frames rather than redacting them. `--all-windows` emits the false positives too, so a reviewer can measure the extraction's error rate. |
+| `tools/decode_spectra.py <corpus>` | Decode measurements. Reads the spectral axis from the `BB 01 09` header and **rejects** a measurement whose chunks do not deliver what the header declares. |
+| `tools/spectral_rank.py <spectra>` | EXP-SPEC-001 analysis: singular-value spectrum and per-component roughness of a measurement matrix. |
+
+```bash
+.venv/bin/python tools/mine_priorart_frames.py /tmp/cr30-priorart/color-science/reverse-engineer-c30/serial-sniffer
+.venv/bin/python tools/decode_spectra.py captures/public/PRIORART-001-vendor-usb-frames.json
+.venv/bin/python tools/spectral_rank.py captures/public/PRIORART-002-spectra.json
+```
+
+⚠ **`tools/redact.py` recomputes byte 59.** That makes a redacted frame a valid
+*fixture* and useless as *evidence* for any checksum rule. Never cite a redacted
+frame in support of the checksum. See `PROTOCOL.md` §0.

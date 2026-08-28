@@ -303,14 +303,26 @@ def main():
 
         # -- 5. is a measurement cached?
         p = phase("cache probe", "re-fetch the chunks WITHOUT re-triggering")
-        again = bytearray()
+        vals = []
         for i, c in enumerate(CHUNKS):
             rx = tx(ser, c, f"BB 01 {0x10+i:02X} refetch", 5.0, p)
-            if len(rx) == 60: again += rx[5:55]
-        p["identical_to_last_measurement"] = (bytes(again).hex() ==
-                                              reps[-1].get("accumulated_body"))
-        print(f"    re-fetch identical to the last measurement: "
-              f"{p['identical_to_last_measurement']}")
+            if len(rx) == 60 and rx[2] in (0x10, 0x11, 0x12):
+                vals += list(struct.unpack(
+                    f"<{VALS_PER_CHUNK}f",
+                    rx[CHUNK_DATA_AT:CHUNK_DATA_AT + 4 * VALS_PER_CHUNK]))
+        refetched = [round(v, 6) for v in vals[:len(reps[-1].get("spectrum") or [])]]
+        p["refetched_spectrum"] = refetched
+        prev = reps[-1].get("spectrum")
+        # Guard: an empty-vs-empty comparison would pass vacuously and read as
+        # "cached". Only a comparison with real values on BOTH sides counts.
+        if not refetched or not prev:
+            p["identical_to_last_measurement"] = None
+            print("    re-fetch INCONCLUSIVE -- one side decoded to nothing")
+        else:
+            p["identical_to_last_measurement"] = (refetched == prev)
+            print(f"    re-fetch identical to the last measurement: "
+                  f"{p['identical_to_last_measurement']} "
+                  f"({len(refetched)} bands compared)")
 
         # -- 6. button-triggered reading
         ask("Place the CR30 on ANOTHER patch and press its own MEASURE BUTTON once.\n"

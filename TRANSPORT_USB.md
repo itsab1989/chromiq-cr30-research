@@ -93,7 +93,7 @@ fact — see §7.1c there.
    risk that matters**, and it needs no CR30 expertise to test — only the device
    on another host.
 
-## The instrument sleeps, and sleep is INDISTINGUISHABLE from absent
+## The USB serial link can go silent while the instrument is perfectly alive
 
 **VERIFIED 2026-08-28.** After roughly ninety minutes idle, the CR30 stopped
 answering on USB entirely — not an error, not a truncated frame, **zero bytes**
@@ -101,7 +101,21 @@ to the identity query `AA 0A 00 00`, which is the lightest thing the protocol
 has. The serial node was still present and nothing else held the port. The same
 command had worked all afternoon.
 
-Waking it (a press of its own button) restores it.
+⚠ **First recorded here as the instrument sleeping. That was WRONG**, and the
+correction is the interesting part. At the moment USB was silent:
+
+* the device was **advertising over BLE** (RSSI −54), so its radio was up and no
+  central held it;
+* a **BLE read succeeded immediately**, returning a plausible spectrum and the
+  device's own Lab;
+* its **display showed `U`**, i.e. the instrument believed the USB link was up.
+
+So the instrument was awake and working. **Only the USB serial link was dead**,
+and only on the host side. A replug restores it.
+
+The lesson is the one this project keeps relearning: a silence explains nothing
+by itself. "Asleep" fitted the evidence available and was still false, and the
+thing that disproved it was reading the device over the *other* transport.
 
 ### Why this matters more than it looks
 
@@ -117,12 +131,18 @@ Consequences for an implementation:
    — the same conclusion `PLATFORM_SUPPORT.md` reaches for a different reason
    (the descriptors describe the shared bridge, and there is no USB serial
    number).
-2. **A read that times out mid-chart is most likely sleep**, not a fault. A user
-   who steps away during a 390-patch sheet will meet this. The error message
-   must say so first, before cables and permissions, because it is the likeliest
-   cause and the cheapest to fix.
-3. **Do not retry silently for long.** Ten seconds of nothing per patch, times a
+2. **A read that times out mid-chart does not tell you why.** Observed causes so
+   far: a stale serial link with the instrument fully alive (this note). The
+   host cannot distinguish that from sleep, from a pulled cable, or from a
+   powered-off device — the port node survives all of them. So the message must
+   offer the cheap checks in order (is the display on? unplug and replug the
+   cable?) rather than assert a cause it cannot know.
+3. **When USB is silent, TRY BLE before blaming the instrument.** It is the one
+   check that separates "the device is gone" from "this link is gone", and it
+   costs seconds.
+4. **Do not retry silently for long.** Ten seconds of nothing per patch, times a
    chart, is a miserable way to discover the instrument dozed off.
 
-**Not established:** the exact idle timeout, whether BLE sleeps on the same
-clock, and whether a wake is needed once per session or once per sleep.
+**Not established:** what wedges the serial link (idle time, the number of
+open/close cycles, or a specific command), whether BLE is affected by the same
+condition (it was not here), and whether anything short of a replug clears it.

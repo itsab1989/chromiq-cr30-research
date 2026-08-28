@@ -52,7 +52,9 @@ async def main():
                   + ("  [VALID CR30 FRAME]" if ok else ""))
         return f
 
-    print("EXP-BLE-005 -- listening only. Nothing is sent to the device.\n")
+    print("EXP-BLE-005 -- listening only. Nothing is sent to the device.")
+    print("Watch the BLUETOOTH INDICATOR on the display; you are asked about it")
+    print("after every step. It vanishing is itself a result.\n")
     async with BleakClient(addr, timeout=20.0) as c:
         print(f"connected: {c.is_connected}  mtu {c.mtu_size}")
         subbed = []
@@ -74,8 +76,13 @@ async def main():
             new = events[start:]
             print(f"    -> {len(new)} notification(s), "
                   f"{sum(len(e[2]) for e in new)} bytes")
+            # The Bluetooth indicator on the display is a STATE SIGNAL we would
+            # otherwise be blind to: the operator saw it vanish ~10 s into an
+            # earlier run, which is why "silence" may mean "radio asleep".
+            ind = input("    Bluetooth indicator on the display now? [y/n] > ").strip().lower()
             log["steps"].append({
                 "step": i, "instruction": instruction, "seconds": secs,
+                "bt_indicator_after": ind.startswith("y"),
                 "notifications": [{"t": round(t - t0, 3), "char": w,
                                    "len": len(b), "hex": b.hex()}
                                   for t, w, b in new]})
@@ -85,8 +92,18 @@ async def main():
 
     total = sum(len(s["notifications"]) for s in log["steps"])
     log["total_notifications"] = total
+    ind = [s["bt_indicator_after"] for s in log["steps"]]
+    log["bt_indicator_timeline"] = ind
     if total:
         log["verdict"] = "THE NOTIFY PATH WORKS -- the device pushes data over BLE."
+    elif ind and not any(ind):
+        log["verdict"] = ("SILENT, and the BT indicator was OFF throughout -- the "
+                          "radio is likely asleep or disabled, so silence says "
+                          "nothing about the protocol.")
+    elif ind and not all(ind):
+        log["verdict"] = ("SILENT, and the BT indicator CHANGED during the run -- "
+                          f"timeline {ind}. Correlate against the step where it "
+                          "dropped before concluding anything about framing.")
     else:
         log["verdict"] = ("SILENT in both directions. BLE is advertised and "
                           "connectable but carries no CR30 traffic under any "

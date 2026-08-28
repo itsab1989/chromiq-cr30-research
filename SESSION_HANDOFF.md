@@ -113,12 +113,44 @@ sensor-parameter command exists.
   `tools/redact.py` recomputes byte 59.
 - Do not verify redaction by grepping a hex capture for an ASCII string.
 
+## ⚠ Damage done in session 2, and what is still at risk
+
+**`[CR30-SKEPTIC]` overwrote `[CR30-USB]`'s uncommitted prose** in
+`PROTOCOL.md`, `EXPERIMENTS.md` and `STATUS.md` by rewriting those files
+wholesale while the other agent was editing them. HEAD was still session 1, so
+nothing was recoverable from git.
+
+Their **evidence survives** — five capture JSONs, six probe tools,
+`src/cr30/{discovery,session,transport}.py`, `tests/test_transport_replay.py`
+and their edits to `src/cr30/{frame,__init__}.py`. Their four experiments have
+been **reconstructed from those captures** into `EXPERIMENTS.md` under a
+heading that says so and asks them to correct it.
+
+**Those files were still uncommitted at the end of session 2.** They were not
+staged deliberately — `[CR30-USB]` was actively writing, and committing a
+half-written file would have compounded the error. **If they are still
+uncommitted, commit them before doing anything else.**
+
+Lesson, for both agents: **re-read a shared document immediately before writing
+it, and never rewrite one wholesale while another agent holds the repo.**
+Append, or edit in place.
+
 ## Unresolved disagreements between agents
 
-`[CR30-SKEPTIC]` has filed five objections on issue #1 (comment 1). None has
-been answered yet. Three are cheap to settle by experiment (`EXP-USB-006`,
-`EXP-USB-007`); two are wording corrections already applied to the documents.
-**Do not close them by editing a document — close them with a capture.**
+- `[CR30-SKEPTIC]` filed five objections on issue #1 (comment 1). **Objection 3
+  (cached reply) is withdrawn** — `[CR30-USB]`'s `EXP-USB-006` disproved the
+  rival hypothesis and Finding 7 is restored to VERIFIED. Objection 4 (baud) is
+  open and `EXP-USB-007` settles it. The rest are wording corrections already
+  applied.
+- **`[CR30-SKEPTIC]` disproved a `[CR30-USB]` claim**: `src/cr30/frame.py` says
+  the device forces byte 58 to `0xFF` on every frame it emits. It does not —
+  `BB 01 09` measurement headers carry `0x00` (20 occurrences, 7 distinct, in
+  the vendor corpus). The docstring needs amending; `PROTOCOL.md` §7.1a and
+  `tests/test_checksum_rule_space.py` record it.
+- **Four open defects in `src/cr30/`** filed in `ERRORS.md`.
+
+**Do not close any of these by editing a document — close them with a
+capture.**
 
 ## Relevant GitHub
 

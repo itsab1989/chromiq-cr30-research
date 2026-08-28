@@ -452,3 +452,77 @@ Recorded as **PROBABLE (repositioning), not verified.** `EXP-CAL-002`
 (`tools/probe_calibration_check.py`) settles it in 30 seconds by re-measuring
 plain white paper against the `EXP-MEAS-001` baseline: a near-constant ratio
 would indicate a calibration change, a varying one a different surface.
+
+
+---
+
+## EXP-MEAS-005 — the ChromIQ spot workflow, working over Bluetooth
+
+2026-08-28. 15 readings, **0 rejected**, every reply header at offset 0, all 15
+spectra distinct. `captures/public/EXP-MEAS-005-spot-workflow.json`.
+
+**The workflow ChromIQ issue #159 §3 describes now runs end to end:** place the
+instrument, press *its own button*, the host picks the reading up over BLE. No
+cable, no keyboard, no driver. Every button press produced a new, distinct
+stored reading that we read back successfully.
+
+### Positioning error — VERIFIED
+
+Six lift-and-replace reads of one cyan patch:
+
+| | |
+|---|---|
+| Mean ΔE₇₆ from the centroid | **0.215** |
+| Worst single reading | **0.340** |
+| Worst-band SD | **0.356 %R** |
+| *(no-lift repeatability, `EXP-MEAS-001`)* | *0.056 %R* |
+
+Lifting costs about **6× the band noise** of not lifting, and still lands inside
+**ΔE 0.34**. For a hand-placed spot instrument that is good — positioning is not
+a limiting factor for profiling accuracy.
+
+⚠ **This does NOT give the minimum patch size, and must not be quoted as if it
+did.** The operator replaced the instrument on a comfortably large patch each
+time, so the aperture stayed well inside it. What is measured is *repeatability
+under normal use*, not the *tolerance envelope*. The minimum patch size needs a
+deliberate experiment placing the aperture near a patch edge until the reading
+degrades. **Chart layout is still blocked on that**, not on this number.
+
+### Rank analysis — too small a corpus to decide, and that is the finding
+
+Singular values over the 15 spectra: 420.7, 285.7, 119.6, 53.5, 11.7, 8.6, 8.6,
+6.4, 4.8, 2.5, … — a smooth decay with **no cliff** at 8 or 11 components.
+
+**But this corpus cannot test the hypothesis.** Six of the fifteen readings are
+the *same* cyan patch, so there are only ~10 genuinely distinct colours; a rank
+of 11 is not even reachable. The result is *consistent with* `[CR30-SKEPTIC]`'s
+disproof of the linear AS7341 reconstruction on 58 vendor spectra, and adds
+nothing independent. `EXP-SPEC-001` needs **≥15 distinct, well-spread colours**
+measured in one calibration state.
+
+### `bb 14` — unresolved, and our probe was wrong
+
+All three sub-commands (`0x00`, `0x08`, `0x09`) returned the identical
+`bb 14 00 00 00 00 00 00 ff ce` on all 15 readings — nothing advances.
+
+**That is not evidence `bb 14` lacks a counter.** We sent a zero payload; the
+vendor sends `bb 14 08 a0 91 6a 01 00 ff 72`, with a 4-byte field in it. This is
+the **echo behaviour** `[CR30-USB]` verified on USB: *the CR30 echoes commands it
+does not implement.* A constant echo means our call was malformed, not that the
+command is empty. **HYPOTHESIS still open.**
+
+### The new-reading problem, restated with what we now know
+
+A backend reads the *stored* measurement, so it must know when a new one has
+arrived — and "the reading did not change" is also the magnet-gated signature.
+No counter has been found.
+
+**But it is solvable without one.** The gated value is a *specific known
+constant* — the stored tile spectrum, flat at ~79 % with a 400 nm rolloff, and
+bit-identical every time. So a backend can:
+
+1. reject a reading bit-identical to the previous one, **and**
+2. reject a reading matching the stored-tile signature,
+
+which covers both failure modes. A counter would be cleaner; these two checks
+are sufficient.

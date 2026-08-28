@@ -714,3 +714,72 @@ measured on a second unit:
 observer *is* settled by arithmetic. Pinned in `tests/test_colour_tables.py`.
 It also means the vendor application's exported condition here is **D65/10°**,
 not the M0/D50/1931-2° that ChromIQ issue #159 records for ColorQC2.
+
+
+---
+
+## EXP-SPEC-001a — 40 spectra, a rank-9 cliff, and why that is NOT the answer
+
+2026-08-28, 40 distinct patches from a ColorMunki double-density chart on
+semi-gloss, one calibration state, captured over BLE.
+`captures/public/EXP-SPEC-001a-corpus.json`. Spread: L\* 6.9–94.0,
+a\* −67.1…+74.6, b\* −61.7…+115.2 — saturated primaries, near-black, near-white.
+
+Singular values of the mean-centred 40 × 31 matrix:
+
+```
+ 1: 686.3   5:  67.9    9:   5.664   <-- cliff
+ 2: 470.6   6:  33.7   10:   0.578
+ 3: 219.3   7:  23.2   11:   0.475
+ 4:  89.8   8:  12.4   12:   0.335
+```
+
+**Largest gap anywhere: 0.991 decades after component 9** — a 10× drop, against
+0.340 after 8, 0.152 after 11 and 0.165 after 13. The corpus spans **9 effective
+dimensions**, and everything past 9 sits at the measurement noise floor
+(0.056 %R SD over 40 samples ≈ 0.35, which is exactly where the tail lands).
+
+### ⚠ This does NOT show the sensor has 9 channels
+
+**The confound is the samples, not the instrument.** Reflectance spectra of
+patches printed with a fixed ink set are famously low-dimensional — a handful of
+inks combined in varying amounts span only as many dimensions as there are
+independent colorants and their interactions. A **perfect 31-channel
+spectrometer** measuring this chart would produce the same rank-9 result,
+because the chart itself contains only 9 dimensions of variation.
+
+So this experiment cannot separate *sample* dimensionality from *sensor*
+dimensionality, and it must not be quoted as evidence for the AS7341
+reconstruction hypothesis. What it does establish is a firm upper bound: the
+information in a printed chart measured by this device is ~9-dimensional,
+whatever the sensor is doing.
+
+### What would actually settle it
+
+1. **Noise-covariance rank** (`EXP-SPEC-001b`) — measure ONE patch ~30 times
+   without moving, and take the rank of the *residuals*. Sample diversity is
+   removed by construction: if the noise lives in a ~9–11 dimensional subspace
+   the sensor is reconstructing; if it spans ~31 the sensor is genuinely
+   31-channel and the cliff above is purely the chart. Needs no special
+   material and takes about a minute.
+2. **A spiky reflectance standard** (didymium, or a strongly fluorescent
+   marker) — something a 9-dimensional ink basis cannot represent. If the device
+   reproduces the spike it is a real spectrometer; if it smooths it into the
+   basis, it is reconstructing.
+
+### Consequence for the beta — none, and that is deliberate
+
+The ChromIQ beta reads through chartread's `-x` external-values mode, which is
+**XYZ/Lab only and carries no `SPECTRAL_*` columns at all**. So the beta makes
+**no claim of 31 independent measurements**, and this question does not gate it.
+
+That is the honest ordering: ship the colorimetric path, which is defensible
+today, and add the spectral path only once `EXP-SPEC-001b` says what the 31
+bands actually are.
+
+### Field note: the guards earned their place
+
+7 of 47 replies were **rejected** by the validation added after the skeptic's
+review — short replies, missing headers, and a 210-byte reply whose only
+candidate failed. Before that hardening those would have entered the corpus as
+data and quietly distorted this analysis.

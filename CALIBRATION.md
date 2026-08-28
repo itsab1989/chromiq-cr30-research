@@ -43,6 +43,46 @@ exactly what that design would feel like in use.
 
 The passive magnet phase in stage A tests this **without sending anything**: the
 cap goes on, we listen for unsolicited traffic and then re-read device state.
+Result: **zero unsolicited bytes, no job-record change, unchanged fingerprint**
+(`EXP-MEAS-001`). The magnet does not reach the wire.
+
+## ⚠ With a magnet attached, the device stops measuring — operator report, 2026-08-28
+
+> *"Whenever a magnet is attached the Lab values on the screen are the same.
+> Even when I put on the cap upside down, although it is green on the other
+> side instead of white like the tile."*
+
+**Confidence: CORROBORATED** (direct observation, with a built-in control — the
+operator changed the target from white to green and the reading did not move).
+
+This is the strongest evidence yet about the hall sensor, and it **rules out the
+reading being a measurement at all**. A device calibrating against what it sees
+would produce a *different* result for a green surface than for a white one. An
+identical result for both means the displayed value **does not depend on the
+optical input**. So with a magnet present the device is either:
+
+- displaying a **stored constant** (most likely the white reference, or a fixed
+  "calibrated" result such as L\*=100, a\*=0, b\*=0), or
+- **refusing to measure** and holding a previous or default value.
+
+**Either way it is not measuring.** That reframes the operator's original report:
+the device is not "taking the reading as a calibration" in the sense of
+recalibrating to the target — it is entering a mode where the optical path is
+ignored.
+
+**This is good news for calibration safety.** If the device does not calibrate
+against whatever the magnet is holding, then an accidental cap attachment cannot
+corrupt the stored white reference — which was the risk that gated stage B.
+
+**Open, and cheap to settle:** what *are* the Lab values shown with a magnet
+attached? If they read approximately L\*=100, a\*=0, b\*=0 the "stored white
+reference" reading is essentially confirmed. Asked of the operator.
+
+**Open, needs a protocol test** (`EXP-MEAS-002`, specified, unrun): does a
+*host-triggered* measurement with the magnet present return a canned spectrum
+too, or does the USB path bypass the hall-sensor logic entirely? The two answers
+have opposite implications for a live ChromIQ backend — if the USB path is also
+gated, a user who leaves the cap on gets silent, plausible, wrong data.
 
 
 **CORROBORATED** (`PRIORART-001`, second unit, vendor traffic):

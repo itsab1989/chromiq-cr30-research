@@ -357,3 +357,76 @@ before any attempt to change a setting. Changing settings from the app while
 capturing is a later step and must not be done casually — an illuminant or
 observer change would alter every subsequent reading, and the operator should
 record the before state so it can be restored.
+
+
+---
+
+## EXP-MEAS-003 — the USB path IS gated · VERIFIED
+
+Ran 2026-08-28, gate confirmed engaged by the operator.
+`captures/public/EXP-MEAS-003-magnet-trigger.json`.
+
+The buffer was deliberately loaded with a saturated blue patch, the magnet was
+engaged **with no button press in between**, and only then was a host trigger
+sent. The three hypotheses were fully separated:
+
+| Reading | mean %R | L\* a\* b\* (D65/10°) |
+|---|---|---|
+| Buffered patch, before | 35.50 | 64.22 / −27.75 / −30.70 |
+| **Host-triggered, magnet engaged** | **79.07** | **91.64 / −0.73 / +1.38** |
+| Gated button press, after | 79.07 | 91.64 / −0.73 / +1.38 |
+
+**ΔE₇₆ to the canned tile value: 0.083. ΔE₇₆ to the buffered patch: 50.1.**
+
+**A host-triggered measurement with the magnet engaged returns the canned tile
+value.** The trigger is not ignored and the cache is not being re-read — the
+buffered patch was discarded and replaced with the stored constant. This
+supersedes the ambiguity in `EXP-MEAS-002`.
+
+### ⚠ The gate is INVISIBLE to the host — and this is the important part
+
+**The trigger reply's header carried offset 24 = `0x00`** — the same value as
+every ungated measurement. The `0x01` seen in `EXP-MEAS-002` appears **only on
+the unsolicited frame from a button press**.
+
+So the candidate "magnet mode" flag is **useless for the case that matters**: a
+host-triggered read is gated *without any header field announcing it*. The
+transaction is indistinguishable from a normal one — correct framing, valid
+checksums, a plausible near-neutral spectrum, no error, no status byte.
+
+**HYPOTHESIS demoted to scoped fact**: offset 24 flags magnet mode on
+button-originated frames only. It **cannot** be used to detect the condition on
+the host path.
+
+### What a ChromIQ backend must therefore do
+
+Flag-based detection is not available. Detection has to be **behavioural**:
+
+1. **Refuse byte-identical consecutive spectra.** The gated value is a stored
+   constant, so every gated patch returns *exactly* the same 31 floats. Real
+   consecutive measurements never do — `EXP-MEAS-001` measured 0.056 % worst-band
+   SD even without lifting the instrument, so genuine repeats differ in the low
+   bits. Bitwise equality is a reliable signature.
+2. **Know the tile value.** The gated spectrum is flat at ~79 % with a 400 nm
+   rolloff. A run whose readings all match that shape is gated, not measured.
+3. **Fail loudly.** Per `ERRORS.md`, this must abort the chart read, not warn.
+   The data is plausible, self-consistent and completely wrong — precisely the
+   class of failure that silently produces a bad profile.
+
+This is a **real, shipping-relevant hazard**: a user who leaves the magnetic cap
+attached, or works near a magnet, gets a full chart of identical white readings
+that no checksum, no framing check and no header field would catch.
+
+### Calibration integrity — inconclusive in this run, and why
+
+The before/after patch readings differ by ΔE ≈ 16.7, far beyond the 0.438 seen
+in `EXP-MEAS-002`. **That is not a calibration shift.** A calibration change
+scales every band by roughly the same factor; here the band-by-band ratio ranges
+**1.564 to 2.541 (sd 0.382 on a mean of 1.96)** — a ~20 % spread. The spectral
+*shape* changed, which means the instrument was on a different spot or partly
+off the patch, not that the device's gain moved.
+
+Recorded as **PROBABLE (repositioning), not verified.** `EXP-CAL-002`
+(`tools/probe_calibration_check.py`) settles it in 30 seconds by re-measuring
+plain white paper against the `EXP-MEAS-001` baseline: a near-constant ratio
+would indicate a calibration change, a varying one a different surface.

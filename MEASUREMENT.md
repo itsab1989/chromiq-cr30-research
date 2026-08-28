@@ -783,3 +783,80 @@ bands actually are.
 review — short replies, missing headers, and a 210-byte reply whose only
 candidate failed. Before that hardening those would have entered the corpus as
 data and quietly distorted this analysis.
+
+
+---
+
+## EXP-SPEC-001b — SETTLED: the 31 bands are reconstructed from **8** channels
+
+2026-08-28. 30 readings of semigloss paper white, **USB-triggered so the
+instrument was never touched**, one calibration state.
+`captures/public/EXP-SPEC-001b-noise.json`. 0 rejected, 0 identical readings —
+so the device really re-measured each time and there is genuine noise to analyse.
+
+Sample diversity is removed **by construction**: one patch, never moved. The only
+thing varying is measurement noise.
+
+Singular values of the detrended residuals (a monotonic warm-up drift of
+82.538 → 82.272 %R was removed first, so it cannot masquerade as a dimension):
+
+```
+ 1: 0.6511   3: 0.4109   5: 0.2291   7: 0.1179      9: 0.000052   <-- floor
+ 2: 0.4643   4: 0.3186   6: 0.1979   8: 0.1057     10: 0.000047
+```
+
+| | |
+|---|---|
+| Drop from component 8 to 9 | **2016×  (3.30 decades)** |
+| Variance carried by the first 8 | **99.99999837 %** |
+| Level of component 9 | 5.2 × 10⁻⁵, the same order as the float32 quantum at 82 %R (9.8 × 10⁻⁶) — **quantisation, not signal** |
+| What 31 independent channels would give | a drop of **1.07×** at the same place (simulated contrast) |
+
+**VERIFIED: the CR30's 31 output values carry exactly 8 degrees of freedom.**
+Twenty-three of the thirty-one bands contain no independent information at all.
+
+### Why this is conclusive where EXP-SPEC-001a was not
+
+`EXP-SPEC-001a` found a rank-9 cliff over 40 printed patches, but a chart printed
+from a fixed ink set is low-dimensional by construction, so a perfect
+spectrometer would have produced the same number. That experiment could not
+separate the sample from the sensor.
+
+Here there is **one sample**. Noise in 31 genuinely independent channels is
+31-dimensional — each channel has its own photon and electronic noise, which is
+exactly what the simulated contrast shows. Noise confined to 8 dimensions means
+the 31 outputs are a **deterministic function of 8 measured quantities**.
+
+### The sensor
+
+The prior-art write-up *estimates* an AS7341 or AS7343 without evidence. The
+**AS7341 has exactly 8 visible-light channels** (F1–F8, nominally 415/445/480/
+515/555/590/630/680 nm). Our measured 8 degrees of freedom **corroborate that
+channel count** — the first measurement to do so, as far as we know.
+
+This does **not** identify the part. It establishes the number of independent
+channels; an 8-channel sensor of another type would fit equally well.
+
+### Consequences
+
+1. **`SPECTRAL_*` in a `.ti3` would be a false claim.** Writing 31 `SPEC_*`
+   columns tells `colprof` it has 31 independent measurements. It has 8. The
+   remaining 23 are interpolated, and a profiler weighting them as independent
+   evidence is being misled about its own information content.
+2. **The ChromIQ beta's colorimetric path is therefore the *correct* choice, not
+   merely the expedient one.** chartread's `-x` mode carries XYZ/Lab and no
+   spectral columns, so it asserts nothing untrue.
+3. **A spectral path is still possible later**, but it must be documented as
+   8-channel reconstructed data, not as 31 measurements. That is a colour-science
+   decision for Basti, not an implementation detail.
+4. It also explains the write-up's own caveat that "ΔE for some colors
+   (especially dark) is somewhat high": an 8-basis reconstruction cannot
+   represent a spectrum with more structure than its basis.
+
+### Not established
+
+The *identity* of the sensor, the basis functions used for reconstruction, and
+whether the reconstruction is linear. Rank alone cannot distinguish a linear
+8-basis expansion from a non-linear map of 8 inputs — both give 8-dimensional
+noise. A spiky reflectance standard (didymium) would show how the reconstruction
+behaves on a spectrum the basis cannot represent.

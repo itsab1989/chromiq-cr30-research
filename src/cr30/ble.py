@@ -53,7 +53,13 @@ def frame(cmd: int, sub: int = 0, param: int = 0, data: bytes = b"") -> bytes:
 
 
 READ_MEASUREMENT = frame(0x02, 0x10)
-STATUS = frame(0x01, 0x00)
+# ⚠ THIS IS THE TRIGGER, whatever the name says. `bb 01 00` is the USB
+# trigger, and EXP-BLE-012 proved on 2026-08-28 that it triggers over Bluetooth
+# too. With a MAGNET at the aperture a trigger does not measure: the device
+# calibrates against whatever is under the cap. Never send it as part of
+# finding or identifying a device.
+TRIGGER_UNSAFE = frame(0x01, 0x00)
+STATUS = TRIGGER_UNSAFE          # the old name, kept so callers still resolve
 
 # ⚠ The advertised name is the device's OWN device-id string (the value
 # AA 0A 01 returns over USB) and is therefore UNIT-SPECIFIC. Hard-coding one

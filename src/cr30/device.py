@@ -110,12 +110,17 @@ class CR30:
         workflow does not need it: the operator presses the instrument's own
         button and `read_measurement` collects the result.
         """
-        if self.kind != "usb":
-            raise NotImplementedError(
-                "no host trigger is known on BLE; the operator presses the "
-                "instrument's own button (TRANSPORT_BLE.md)")
-        from . import usb_measure
-        usb_measure.trigger(self._t)
+        if self.kind == "usb":
+            from . import usb_measure
+            usb_measure.trigger(self._t)
+            return
+        # This used to raise, saying no host trigger is known on BLE.
+        # EXP-BLE-012 disproved that on 2026-08-28: sent over Bluetooth with no
+        # button press, the stored reading moved 11.2667 %R -> 3.9222 %R, and
+        # the operator's own press on the same surface then read 3.9416 %R --
+        # 0.0347 %R apart. The old claim was honest about the vendor capture,
+        # which contains no trigger; it was simply never tested.
+        self._t.ask(ble.TRIGGER_UNSAFE, polls=4)
 
     def read_measurement(self, *, enforce: bool = True,
                          button_header=None) -> Measurement:

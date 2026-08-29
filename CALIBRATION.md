@@ -289,11 +289,26 @@ reaches the gated path: **a host-triggered calibration over BLE is real.** The
 control proves the gate was engaging that day, so a null result could not have
 been the probe failing.
 
-**The device does not beep for a host trigger with the cap on.** The owner
-reported the Calibrate button as dead for that reason; the calibration was
-happening and only the feedback was missing. (A later observation: it DOES beep
-when the trigger takes an ordinary measurement, cap off, on a patch — so the
-silence is specific to the gated case.)
+### ⚠ CORRECTION — the "no beep" claim was never measured, and is WRONG
+
+This section previously stated that the device does not beep for a host trigger
+with the cap on. **It does, on both transports.** The owner, 2026-08-29, after
+running the same calibration over USB and Bluetooth:
+
+> *"it beeps, but so did it via bluetooth as well, usb was just much faster,
+> near instant."*
+
+No capture ever recorded sound. `EXP-BLE-015`'s JSON has no field for it, and
+the probe asked the operator to listen while never recording the answer — its
+success text had "the missing beep" written into it before the run. The claim
+came from his first impression alone, and was published as a finding.
+
+What actually happened is **latency, not silence**: over Bluetooth a
+trigger-and-read cycle took ~1.85 s, so the Calibrate button felt dead. Over USB
+the same operation is near-instant and obviously works.
+
+The lesson is the one this corpus keeps teaching: an impression is a hypothesis,
+and a probe that does not record an observation cannot confirm one.
 
 ### The 0.73 % that followed, and why it is not a shift
 

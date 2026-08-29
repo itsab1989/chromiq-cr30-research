@@ -267,6 +267,54 @@ error. This is precisely the pattern `CLAUDE.md` §14 forbids.
    occurrence, rather than taking `find()`'s first hit.
 4. Require the reply length to be exactly 200 for a 31-band axis, not `>= 196`.
 
+## ✅ A BUTTON PRESS IS AN UNSOLICITED EVENT — VERIFIED 2026-08-29, `EXP-BLE-013`
+
+**This document previously implied no such thing existed, and the whole
+Bluetooth reading design was built around its absence.** It was never tested.
+
+A passive listener — connected, subscribed to `ffe1`, **zero bytes written** —
+recorded the owner pressing the instrument's button three times:
+
+```
+control phase, 10 s, nobody touching it : 0 notifications
+t = 26.87 s   bb 01 00 00 01 90 0a 1f ff 75
+t = 33.83 s   bb 01 00 00 01 90 0a 1f ff 75
+t = 42.53 s   bb 01 00 00 01 90 0a 1f ff 75
+```
+
+Three presses, three frames, ~7 s and ~8.7 s apart, matching his pacing, with a
+silent control and nothing sent to the device at any point. Raw:
+`captures/raw/EXP-BLE-013-button-notification.json`.
+
+The frame decodes as command `01`, sub `00`, then the axis in the `BleAxis`
+layout — **start 400 nm, step 10 nm, 31 bands** — marker `0xff`, checksum `0x75`,
+which is `sum(bytes[:9]) % 256` and **valid**. It is byte-identical to what this
+document elsewhere calls a "hello / axis announcement".
+
+Two refinements, both from later runs:
+
+* **It announces the PRESS, not a plausible reading.** `EXP-BLE-014`'s positive
+  control was a press **in mid-air**, and the frame still arrived. So it is not
+  a "measurement complete" signal conditioned on a sane result.
+* **A HOST TRIGGER emits one too** (`EXP-BLE-015`: four frames for three presses
+  plus one trigger). So the event means *the instrument acted*, whoever asked.
+  Anything listening for a press must account for its own triggers.
+
+### What this cost while it was believed
+
+`BleTransport._drain` cleared the receive buffer before every command, so these
+frames were **discarded unread**. With no event, a press could only be inferred
+by polling the stored value and noticing it changed — which cannot tell one
+press from three, cannot see two presses that produced the same colour, and
+attributes whatever it finds to whatever is armed at that moment. On the owner's
+chart a colour destined for A19 was written to A20, ΔE 73.4.
+
+### The poll doctrine is overstated
+
+In both of his sessions replies arrived **before** the first `0x01` poll. "The
+device only answers a poll" is not what the traffic shows; the poll drives bulk
+transfer, it is not a precondition for the device speaking.
+
 ## Also open, and not currently acknowledged
 
 - **`LAB_AT = 184` and `MIN_REPLY = 196` are hard-coded for 31 bands** while the

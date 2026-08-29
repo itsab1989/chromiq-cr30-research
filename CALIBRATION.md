@@ -239,6 +239,86 @@ that is always the same carries no information until something makes it change.
 Deliberately provoking a failure (§below) is worth more than ten successes. The device ships with a white tile and a cap, and the write-up
 claims cap presence is detected by a hall sensor.
 
+## ✅ THE MAGNET ALONE DOES NOTHING — VERIFIED 2026-08-29, `EXP-BLE-014`
+
+The owner's hypothesis, and a serious one: *"maybe the magnet alone triggers the
+calibration without presing a button at all."* If true, an instrument stored
+capped would recalibrate itself repeatedly against whichever face met the
+aperture, and the rule against sending the trigger would have been aimed at the
+wrong thing entirely.
+
+A passive listener, **nothing sent to the device**:
+
+```
+A  cap OFF, untouched     : 0 frames    (control)
+B  cap SEATED, white in   : 0 frames
+C  cap resting on         : 0 frames
+D  cap REMOVED            : 0 frames
+E  untouched              : 0 frames    (control)
+F  one button press       : 1 frame     (positive control — the listener was alive)
+```
+
+Seating, resting and removing the magnet produce no announced action. **A
+measurement must still be TRIGGERED**, by the button or by the host; the magnet
+only changes what that measurement means. `EXP-MEAS-003`'s original framing
+stands.
+
+⚠ **Limit of this result.** It proves nothing is ANNOUNCED. A wholly silent
+calibration would look identical from the host. What makes that unlikely is that
+a press announces, so a magnet-driven measurement presumably would too — but
+that is inference, not measurement.
+
+**Observed and unexplained:** the lights flashed when the cap was REMOVED, with
+no frame accompanying them. The lamp is decoupled from anything host-observable
+and must not be used as a cue for whether the device acted.
+
+## ✅ THE HOST TRIGGER DOES CALIBRATE OVER BLUETOOTH — VERIFIED 2026-08-29, `EXP-BLE-015`
+
+`EXP-BLE-012` established the BLE host trigger takes a measurement with **no**
+magnet. This tested it **with** one, cap seated white-tile-in:
+
+| step | mean %R | is it the tile constant? |
+|---|---|---|
+| paper, before | 88.3327 | no — a real reading |
+| **after the host trigger** | **79.0678** | **yes** |
+| after a button press (positive control) | 79.0678 | yes |
+| paper, after | 87.6836 | no — a real reading |
+
+The trigger returned `TILE_SIGNATURE` exactly, as the button press did, so it
+reaches the gated path: **a host-triggered calibration over BLE is real.** The
+control proves the gate was engaging that day, so a null result could not have
+been the probe failing.
+
+**The device does not beep for a host trigger with the cap on.** The owner
+reported the Calibrate button as dead for that reason; the calibration was
+happening and only the feedback was missing. (A later observation: it DOES beep
+when the trigger takes an ordinary measurement, cap off, on a patch — so the
+silence is specific to the gated case.)
+
+### The 0.73 % that followed, and why it is not a shift
+
+Paper read 88.3327 before and 87.6836 after — 0.73 % darker — which is far above
+this unit's 0.056 % worst-band repeatability and looked like a calibration
+error. `EXP-BLE-017` settles it:
+
+```
+A  five readings, nothing moved      mean 89.7233  sd 0.0760
+B  five readings, lifted and replaced mean 89.3039  sd 0.0733
+```
+
+Every reading in B is below every reading in A. **Lifting the instrument and
+setting it back down shifts the result by −0.47 %, at 5.6 σ**, and worst-case
+A-max to B-min is −0.63 %. The cap went on and came off between the two paper
+readings, so handling accounts for it. The paper was thin over an uneven
+backing, which is the owner's own explanation and is consistent.
+
+⚠ The probe's own printed verdict said the opposite, because it compared spread
+*within* each phase rather than the two phases as groups — the wrong statistic
+for a repositioning. The numbers above are the correct comparison.
+
+**Practical consequence:** on thin paper, a patch is not re-measurable to better
+than about half a percent. Judge repeat readings on thick opaque backing.
+
 ## To establish by experiment
 
 - Exact command and response for each calibration.

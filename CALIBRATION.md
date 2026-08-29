@@ -337,7 +337,7 @@ than about half a percent. Judge repeat readings on thick opaque backing.
 ## To establish by experiment
 
 - Exact command and response for each calibration.
-- Prerequisites and required order (black first, then white — per Pharmacist).
+- Prerequisites and required order (black first, then white — **DISPROVEN, see EXP-BLE-016: the vendor app does WHITE then BLACK, twice, captured 2026-08-29**; the old note said black first — per Pharmacist).
 - Is calibration stored in the device, and does it survive a power cycle?
 - Does it expire, and is staleness reported?
 - Is white-tile presence actually detected, and how does the device respond if

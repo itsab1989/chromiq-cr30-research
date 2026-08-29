@@ -554,6 +554,127 @@ control is in the script rather than trusting the first plausible float run.
 
 ---
 
+## EXP-BLE-012 — is there a host trigger over Bluetooth? · ✅ DONE
+
+**Yes, and it was in our own command table under another name.** `bb 01 00` is
+the USB trigger; the BLE table called the same frame `STATUS`. Sent with no
+button press: the stored reading moved **11.2667 → 3.9222 %R**, and the
+operator's own press on the same surface then read **3.9416 %R** — 0.0347 %R
+apart, against 11.1 %R of change. Control press part of the method.
+Raw: `captures/raw/EXP-BLE-012-host-trigger.json`.
+
+Consequence: discovery and `identify()` were both sending it, so merely LOOKING
+for the instrument made it measure — and with a magnet at the aperture that is a
+white calibration. Both now use `READ_MEASUREMENT`.
+
+## EXP-BLE-013 — does a button press push an unsolicited frame over BLE? · ✅ DONE
+
+**Yes.** Passive listener, ZERO bytes written, three presses:
+```
+control 10 s, untouched : 0 notifications
+t = 26.87 / 33.83 / 42.53 s   bb 01 00 00 01 90 0a 1f ff 75
+```
+Checksum valid; carries the 400/10/31 axis. Byte-identical to what
+`TRANSPORT_BLE.md` had filed as a "hello / axis announcement".
+Raw: `captures/raw/EXP-BLE-013-button-notification.json`.
+
+This replaced the whole poll-and-compare read design, which could not tell one
+press from three and mis-attributed readings to later patches.
+
+## EXP-BLE-014 — does the magnet alone do anything? · ✅ DONE
+
+**No — nothing announced.** Seat / rest / remove the cap: 0 frames each; both
+controls silent; the positive control (one button press) fired. A **mid-air**
+press produced a frame too, so the event is the PRESS, not a plausible reading.
+Raw: `captures/raw/EXP-BLE-014-magnet-event.json`.
+Limit: proves nothing is ANNOUNCED, not that nothing happens.
+
+Observed and unexplained: the lamp flashed at cap REMOVAL with no frame. The
+lights are decoupled from anything host-observable and must not be used as a cue.
+
+## EXP-BLE-015 — does the host trigger calibrate when a magnet is present? · ✅ DONE
+
+**Yes.** Cap seated white-tile-in:
+
+| step | mean %R | tile constant? |
+|---|---|---|
+| paper before | 88.3327 | no |
+| **after host trigger** | **79.0678** | **yes** |
+| after button press (control) | 79.0678 | yes |
+| paper after | 87.6836 | no |
+
+Raw: `captures/raw/EXP-BLE-015-trigger-calibrates.json`.
+
+⚠ **A "no beep" claim was recorded from this and was WRONG.** No capture ever
+recorded sound; the probe asked the operator to listen and never stored the
+answer. The device beeps on both transports — see `CALIBRATION.md`.
+
+## EXP-018 — measurement rate, and does a reading follow a moving head? · ✅ DONE
+
+USB: **3.18 readings/s**, cycle **315 ms**, range 313.8–317.4 ms over 78 cycles,
+0 failures. The regularity means it is the DEVICE's measurement time and cannot
+be improved. Held still: consecutive readings differ by **ΔE 0.0037** (median).
+Drawn across patches: **ΔE 0.27** median, 6.81 max — 74× the noise, so readings
+do follow the surface. Aperture 4 mm (operator, measured).
+Raw: `captures/raw/EXP-018-rate-usb.json`.
+
+⚠ The first run of this used "did the spectrum change at all" as its statistic.
+Instrument noise made every reading unique, so it read 100 % in BOTH phases and
+could not distinguish them. A saturating statistic answers nothing.
+
+## EXP-020 — does room light get into a reading of nothing? · ⚠ COMPROMISED, REDO
+
+Intended to test whether the vendor's "point it at nothing" black calibration is
+sensitive to ambient light. **The result cannot be used.** Phases A and B each
+returned five BIT-IDENTICAL values — this corpus's own marker for *the device did
+not re-measure* — because the probe triggered, slept a fixed 0.4 s and read
+whatever was stored. That is the stale-cache pattern. `0.00000` under a torch
+against `0.00018` in darkness is backwards besides.
+Raw: `captures/raw/EXP-020-ambient-light.json` — kept as a record of the fault.
+
+To redo: wait for the completion the device announces rather than sleeping, and
+prove freshness before comparing anything.
+
+## EXP-021 — do USB and Bluetooth mirror each other? · ✅ DONE
+
+**No — a connected phone app takes the button press EXCLUSIVELY.** A USB listener
+that opens the device exactly as ChromIQ does heard nothing at all, including the
+operator's own press (the positive control, so the listener was not merely
+mis-set). The BLE trace of the same moment:
+```
+174.714 in  bb 01 00 …    <- the press, arriving over Bluetooth
+174.719 out 01            <- the phone polls
+174.831 out bb 02 10 …    <- the phone reads the measurement
+175.105 in  200 bytes     <- and takes the spectrum
+```
+Exactly one unsolicited event in the whole trace, after 115 s of silence.
+
+Consequence for ChromIQ: a phone app merely CONNECTED — not in use — makes a USB
+session silently dead. It also consumes the stored reading.
+
+⚠ The first two runs of this were deaf because the probe opened the serial port
+without identifying the device. **The CR30 does not speak to a host that has not
+introduced itself**, and a listener that skips the introduction reports silence
+as a fact.
+
+## EXP-BLE-016 — the calibration commands over Bluetooth · ✅ DONE
+
+Captured from the vendor app on this unit (`tools/parse_pklg.py`):
+```
+white  out  bb 11 01 00 00 00 00 00 ff cc   in  bb 11 00 11 …
+black  out  bb 10 01 00 00 00 00 00 ff cb   in  bb 10 00 1c …
+```
+Two runs; replies also `bb 11 00 0a …` / `bb 10 00 0f …`.
+
+* **The sub-byte is 01 over BLE and 00 in the USB corpus capture.**
+* **Byte 3 of the reply VARIES** (0x11, 0x1c, 0x0a, 0x0f). It is not a fixed
+  success marker and its meaning is NOT DETERMINED — no success check may be
+  built on it yet.
+* **Each command performs its own acquisition**; no trigger before or after.
+* **Order: white then black**, both runs — correcting `CALIBRATION.md`.
+* Neither command has been sent by us. The operator lifted the standing "do not
+  send `bb 10` / `bb 11`" instruction on 2026-08-29 for a designed session.
+
 ## EXP-USB-007 — ChromIQ's Argyll serial scan vs. the CR30 · ✅ DONE
 
 **Hypothesis (`EXP-USB-005c` predicted the answer before the test ran).** Every

@@ -1,0 +1,25 @@
+{
+  "experiment": "EXP-BLE-017",
+  "utc": "2026-08-29T15:54:37.547555+00:00",
+  "observed_pct_to_explain": 0.73,
+  "phase_a_means": [
+    89.57643250496157,
+    89.75493424938571,
+    89.79387566351122,
+    89.73199782832977,
+    89.7592032647902
+  ],
+  "phase_a_spread_pct": 0.2423486273127669,
+  "phase_b_means": [
+    89.22926109067855,
+    89.22460568335748,
+    89.42230396886026,
+    89.30814263128465,
+    89.33514576573526
+  ],
+  "phase_b_spread_pct": 0.2213770099556097,
+  "verdict": "NOT EXPLAINED BY HANDLING \u2014 untouched varies 0.24 %, lifting varies 0.22 %, and neither reaches 0.73 %. The shift across the calibrations looks real; do not measure a chart for real until it is understood.",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

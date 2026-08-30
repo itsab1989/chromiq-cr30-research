@@ -27,10 +27,10 @@
 
 | What | Path |
 |---|---|
-| ArgyllCMS 3.5.0 source | `/Users/Basti/Downloads/Argyll_V3.5.0_orig` |
+| ArgyllCMS 3.5.0 source | `~/Downloads/Argyll_V3.5.0_orig` |
 | ArgyllCMS binaries | `/Applications/Argyll/bin` |
-| Argyll vendored in ChromIQ | `/Users/Basti/develop/ChromIQ/native/instlib/` |
-| ChromIQ (READ-ONLY) | `/Users/Basti/develop/ChromIQ` |
+| Argyll vendored in ChromIQ | `~/develop/ChromIQ/native/instlib/` |
+| ChromIQ (READ-ONLY) | `~/develop/ChromIQ` |
 | Prior art, cloned | `/tmp/cr30-priorart/` — ⚠ `/private/tmp` is swept; re-clone rather than rely on it |
 
 ## Not yet available / not yet needed

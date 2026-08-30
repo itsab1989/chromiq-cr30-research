@@ -12,7 +12,7 @@ reproduce vendor software and **not** to make ColorQC2 work.
 
 ## 2. Hard boundary: ChromIQ is READ-ONLY
 
-`/Users/Basti/develop/ChromIQ` (and the GitHub repo `itsab1989/ChromIQ`) may be
+`~/develop/ChromIQ` (and the GitHub repo `itsab1989/ChromIQ`) may be
 read, inspected and analysed. You must **never**:
 
 - commit, push, branch, tag or open a PR against ChromIQ
@@ -109,7 +109,7 @@ protocol failure. "Get ColorQC2 working" is never a milestone.
 
 ## 10. Argyll is investigative prior art
 
-ArgyllCMS source is available at `/Users/Basti/Downloads/Argyll_V3.5.0_orig`
+ArgyllCMS source is available at `~/Downloads/Argyll_V3.5.0_orig`
 and vendored at `ChromIQ/native/instlib/`. Trace implementation paths; do not
 just grep for "CR30". Record file paths, functions, constants and whether code
 looks active, obsolete or speculative. **Agreement with hardware raises

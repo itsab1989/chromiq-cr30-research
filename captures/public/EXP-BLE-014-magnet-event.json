@@ -1,0 +1,23 @@
+{
+  "experiment": "EXP-BLE-014",
+  "utc": "2026-08-29T15:28:17.998463+00:00",
+  "phase_counts": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0,
+    "E": 0,
+    "F": 1
+  },
+  "events": [
+    {
+      "t": 63.667,
+      "len": 10,
+      "hex": "bb01000001900a1fff75"
+    }
+  ],
+  "verdict": "THE MAGNET ALONE DOES NOTHING \u2014 the controls were silent, the button press was seen, and seating, resting and removing the cap produced no frame at all.",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

@@ -848,7 +848,7 @@ channels; an 8-channel sensor of another type would fit equally well.
    spectral columns, so it asserts nothing untrue.
 3. **A spectral path is still possible later**, but it must be documented as
    8-channel reconstructed data, not as 31 measurements. That is a colour-science
-   decision for Basti, not an implementation detail.
+   decision for the owner, not an implementation detail.
 4. It also explains the write-up's own caveat that "ΔE for some colors
    (especially dark) is somewhat high": an 8-basis reconstruction cannot
    represent a spectrum with more structure than its basis.

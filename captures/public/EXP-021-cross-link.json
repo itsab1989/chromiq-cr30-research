@@ -1,0 +1,11 @@
+{
+  "experiment": "EXP-021",
+  "utc": "2026-08-29T20:19:12.492484+00:00",
+  "quiet": [],
+  "phone": [],
+  "own_button": [],
+  "verdict": "LISTENER PROVEN DEAF \u2014 your own button press produced nothing on the cable, so the silence in phase 2 means nothing at all. Re-run; do not read anything into this.",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

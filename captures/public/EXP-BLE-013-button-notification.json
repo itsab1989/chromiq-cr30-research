@@ -1,0 +1,29 @@
+{
+  "experiment": "EXP-BLE-013",
+  "utc": "2026-08-29T15:20:54.408169+00:00",
+  "quiet_before": 0,
+  "during_presses": 2,
+  "quiet_after": 1,
+  "presses_asked_for": 3,
+  "events": [
+    {
+      "t": 26.866,
+      "len": 10,
+      "head": "bb01000001900a1fff75"
+    },
+    {
+      "t": 33.827,
+      "len": 10,
+      "head": "bb01000001900a1fff75"
+    },
+    {
+      "t": 42.528,
+      "len": 10,
+      "head": "bb01000001900a1fff75"
+    }
+  ],
+  "verdict": "INCONCLUSIVE \u2014 the device sent frames while nobody touched it, so a notification cannot be attributed to a press. Worth knowing on its own.",
+  "_redaction": "Unit-specific device-id strings replaced with same-length placeholders; checksum recomputed so frames stay valid.",
+  "_synthesised_checksums": [],
+  "_synthesised_checksums_note": "Byte 59 of these frames was recomputed by tools/redact.py using sum(0..58) mod 256. They satisfy that rule BY CONSTRUCTION and are NOT evidence for it. Use them as framing fixtures only. The device's own bytes are in captures/raw/ (gitignored). Raised by [CR30-SKEPTIC], objection 1."
+}

@@ -1,7 +1,7 @@
 # INTEGRATION.md — CR30 → ChromIQ
 
 **Written 2026-08-28 by `[CR30-SKEPTIC]` from source inspection of
-`/Users/Basti/develop/ChromIQ` at commit `f7ecc7f4`.** Documentation only.
+`~/develop/ChromIQ` at commit `f7ecc7f4`.** Documentation only.
 Nothing here is implemented in ChromIQ, and nothing in this repository imports
 it (`CLAUDE.md` §§2–3). Every claim carries a file and line number; where a
 claim in ChromIQ issue #159 conflicts with the source, the source wins.

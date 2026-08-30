@@ -675,6 +675,54 @@ Two runs; replies also `bb 11 00 0a …` / `bb 10 00 0f …`.
 * Neither command has been sent by us. The operator lifted the standing "do not
   send `bb 10` / `bb 11`" instruction on 2026-08-29 for a designed session.
 
+## EXP-022 — sending the calibration commands ourselves · ✅ DONE
+
+The owner lifted the standing "never send `bb 10` / `bb 11`" instruction for one
+designed session, 2026-08-29. Both were sent to his unit over USB.
+
+**Both accepted, ~250 ms each**, with a reply. And a white calibration taken with
+the cap properly seated moved his paper reading
+
+```
+before   83.94768 %R      <- the lowest reading of the whole evening
+after    88.37017 %R      <- back in the band every other reading sat in
+                             (88.33, 87.68, 89.72, 89.30, 86.81, 88.06)
+```
+
+so `bb 11` genuinely SETS the white reference — it is not a status query or a
+no-op. The likeliest reading of that 5.27 % jump is that an earlier, muddled run
+had calibrated against the wrong surface (paper reads ~86 %R against a tile at
+~79, which sets the reference too high and makes everything afterwards too
+dark), and that a correct calibration restored it. Air read 0.00000 %R before
+and after, so the dark reference was undisturbed.
+
+Raw: `captures/raw/EXP-022-calibration-session-*.json` (two runs; the FIRST is
+unusable — see below).
+
+### No success signal exists, on either transport
+
+The USB reply's bytes [3..6] read as `00 00 00 01` — which fits the corpus's
+"`0x01` at offset 6 means success" AND fits equally well the high byte of a
+device clock that was never set (0x01000000 = exactly 2^24). Over BLE the same
+field carried a real timestamp on a unit whose clock the vendor app had just
+set. **Nothing may report a calibration as successful.** The only honest check is
+what the readings do afterwards, and for the dark reference there is one: a
+reading of nothing should come back at nothing.
+
+### ⚠ The first run is unusable, and the fault was in the probe
+
+Its prompts named the surface in one message and asked for the press in
+another — "as in step 1", where step 1 had asked for two different surfaces. The
+operator pressed on paper where the script recorded "air", and every magnitude
+in that run became unattributable. **A prompt that does not say what is under
+the instrument at the moment of the press is not an instruction; it is a guess
+about what the operator remembered.** The second run numbers every press and
+names its surface in the same breath, and is the one quoted above.
+
+That run also produced a more useful number by accident: two readings of the
+SAME paper, taken minutes apart, differed by **2.3 %**. Thin paper on an uneven
+backing cannot resolve a sub-1 % calibration shift, whatever the probe claims.
+
 ## EXP-USB-007 — ChromIQ's Argyll serial scan vs. the CR30 · ✅ DONE
 
 **Hypothesis (`EXP-USB-005c` predicted the answer before the test ran).** Every
